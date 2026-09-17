@@ -7,7 +7,7 @@ on:
       - '!main'
       - '!develop'
 
-jobs:          
+jobs:
   build:
     name: working
     runs-on: macos-latest
@@ -24,25 +24,23 @@ jobs:
         run: |
           defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES
 
-      - name: Set Default Scheme
+      - name: Set Environment
         run: |
-          scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          echo "$scheme_list"
-          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-          echo $default | cat >default
-          echo Using default scheme: $default
+          package_dir=$(ls -d *.swiftpm | head -1)
+          scheme=$(cd "$package_dir" && xcodebuild -list -json 2>/dev/null | ruby -rjson -e 'puts JSON.parse(STDIN.read)["workspace"]["schemes"][0]')
+          echo "PACKAGE_DIR=$package_dir" >> $GITHUB_ENV
+          echo "SCHEME=$scheme" >> $GITHUB_ENV
+          echo "Using package: $package_dir / scheme: $scheme"
 
       - name: Archive Project
+        working-directory: ${{ env.PACKAGE_DIR }}
         run: |
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")              
-          xcodebuild archive -"$filetype_parameter" "$file_to_build" \
-                             -scheme $default \
-                             -sdk iphoneos \
-                             -configuration Release \
-                             -archivePath build.xcarchive \
-                             CODE_SIGNING_ALLOWED=NO
+          xcodebuild archive \
+                     -scheme "$SCHEME" \
+                     -destination 'generic/platform=iOS' \
+                     -configuration Release \
+                     -archivePath "$GITHUB_WORKSPACE/build.xcarchive" \
+                     CODE_SIGNING_ALLOWED=NO
 
       - name: Create ExportOptions.plist
         run: |
@@ -54,7 +52,7 @@ jobs:
           echo -n '${{ secrets.APPLE_API_KEY_BASE64 }}' | base64 --decode > ./private_keys/AuthKey_${{ secrets.APPLE_API_ISSUER_ID }}.p8
 
       - name: Export IPA
-        run: |   
+        run: |
           xcodebuild -exportArchive \
                      -archivePath build.xcarchive \
                      -exportOptionsPlist ExportOptions.plist \
@@ -63,3 +61,6 @@ jobs:
                      -authenticationKeyPath `pwd`/private_keys/AuthKey_${{ secrets.APPLE_API_ISSUER_ID }}.p8 \
                      -authenticationKeyID ${{ secrets.APPLE_API_KEY_ID }} \
                      -authenticationKeyIssuerID ${{ secrets.APPLE_API_ISSUER_ID }}
+          ipa_path=$(ls app.ipa/*.ipa | head -1)
+          echo "IPA_PATH=$ipa_path" >> $GITHUB_ENV
+          echo "APP_NAME=$(basename "$ipa_path" .ipa)" >> $GITHUB_ENV
