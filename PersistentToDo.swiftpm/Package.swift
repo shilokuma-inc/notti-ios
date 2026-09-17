@@ -16,6 +16,7 @@ let package = Package(
         .iOSApplication(
             name: "おせっかいアプリ",
             targets: ["AppModule"],
+            bundleIdentifier: "ml.mrs1669.notti",
             teamIdentifier: "CKJU28R49D",
             displayVersion: "1.0",
             bundleVersion: "1",
