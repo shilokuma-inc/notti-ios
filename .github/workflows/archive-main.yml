@@ -7,25 +7,6 @@ on:
 jobs:
   archive:
     runs-on: macos-latest
-    steps:
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Build & Archive
-        run: |
-          xcodebuild archive -project notti.xcodeproj -scheme notti -destination 'generic/platform=iOS' -configuration Release -archivePath ${{ github.workspace }}/build.xcarchive CODE_SIGNING_ALLOWED=NO
-
-
-on:
-  push:
-    branches: main
-
-jobs:
-  build:
-    name: main
-    runs-on: macos-latest
 
     steps:
       - uses: maxim-lobanov/setup-xcode@v1
@@ -35,47 +16,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: ci_post_clone
-        run: |
-          defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES
-
-      - name: Set Environment
-        run: |
-          package_dir=$(ls -d *.swiftpm | head -1)
-          scheme=$(cd "$package_dir" && xcodebuild -list -json 2>/dev/null | ruby -rjson -e 'puts JSON.parse(STDIN.read)["workspace"]["schemes"][0]')
-          echo "PACKAGE_DIR=$package_dir" >> $GITHUB_ENV
-          echo "SCHEME=$scheme" >> $GITHUB_ENV
-          echo "Using package: $package_dir / scheme: $scheme"
-
-      - name: Archive Project
-        working-directory: ${{ env.PACKAGE_DIR }}
+      - name: Archive
         run: |
           xcodebuild archive \
-                     -scheme "$SCHEME" \
+                     -project notti.xcodeproj \
+                     -scheme notti \
                      -destination 'generic/platform=iOS' \
                      -configuration Release \
                      -archivePath "$GITHUB_WORKSPACE/build.xcarchive" \
                      CODE_SIGNING_ALLOWED=NO
-
-      - name: Create ExportOptions.plist
-        run: |
-          echo '${{ secrets.EXPORT_OPTIONS }}' > ExportOptions.plist
-
-      - name: Create Private Key
-        run: |
-          mkdir private_keys
-          echo -n '${{ secrets.APPLE_API_KEY_BASE64 }}' | base64 --decode > ./private_keys/AuthKey_${{ secrets.APPLE_API_ISSUER_ID }}.p8
-
-      - name: Export IPA
-        run: |
-          xcodebuild -exportArchive \
-                     -archivePath build.xcarchive \
-                     -exportOptionsPlist ExportOptions.plist \
-                     -exportPath app.ipa \
-                     -allowProvisioningUpdates \
-                     -authenticationKeyPath `pwd`/private_keys/AuthKey_${{ secrets.APPLE_API_ISSUER_ID }}.p8 \
-                     -authenticationKeyID ${{ secrets.APPLE_API_KEY_ID }} \
-                     -authenticationKeyIssuerID ${{ secrets.APPLE_API_ISSUER_ID }}
-          ipa_path=$(ls app.ipa/*.ipa | head -1)
-          echo "IPA_PATH=$ipa_path" >> $GITHUB_ENV
-          echo "APP_NAME=$(basename "$ipa_path" .ipa)" >> $GITHUB_ENV
