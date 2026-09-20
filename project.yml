@@ -1,0 +1,20 @@
+name: notti
+options:
+  bundleIdPrefix: ml.mrs1669
+configs:
+  Debug: debug
+  Release: release
+settings:
+  INFO_PLIST_FILE: Sources/App/Info.plist
+targets:
+  notti:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Sources/App]
+    resources: []
+    info:
+      path: Sources/App/Info.plist
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: ml.mrs1669.notti
+      SWIFT_VERSION: "5.9"
