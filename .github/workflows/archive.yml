@@ -1,0 +1,42 @@
+name: Archive
+
+on:
+  push:
+    branches:
+      - '**'
+
+concurrency:
+  group: archive-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  archive:
+    name: ${{ github.ref_name }}
+    runs-on: macos-latest
+
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      # 署名は Upload ワークフローのエクスポート時に App Store Connect API キーで行うので、ここでは署名しない。
+      # ビルド番号は run_number で一意にし、同じ番号のアップロードで弾かれないようにする。
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -project notti.xcodeproj \
+            -scheme notti \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
