@@ -88,3 +88,6 @@ fastlane/test_output
 # https://github.com/johnno1962/injectionforxcode
 
 iOSInjectionProject/
+
+# XcodeGen が生成する。project.yml から再生成できる
+*.xcodeproj
