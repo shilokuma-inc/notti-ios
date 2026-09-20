@@ -47,3 +47,27 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO
 
+  nottiTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: nottiTests
+    dependencies:
+      - target: notti
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ml.mrs1669.notti.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  notti:
+    build:
+      targets:
+        notti: all
+        nottiTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - nottiTests
