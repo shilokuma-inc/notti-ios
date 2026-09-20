@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct MyApp: App {
+struct NottiApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             TaskModel.self,
