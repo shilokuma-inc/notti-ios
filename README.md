@@ -36,7 +36,7 @@ GitHub Actions（`.github/workflows/`）。どのワークフローも最初に 
 | `APPLE_API_ISSUER_ID` | 同キーの Issuer ID |
 
 署名もアップロードもこの API キーで行う。Upload が通るには、App Store Connect に Bundle ID
-`ml.mrs1669.notti` のアプリがあらかじめ登録されている必要がある。
+`jp.shilokuma.notti` のアプリがあらかじめ登録されている必要がある。
 
 ## 環境
 
