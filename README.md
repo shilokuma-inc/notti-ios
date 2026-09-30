@@ -33,7 +33,7 @@ open notti.xcodeproj
 | 設定 | 値 |
 |---|---|
 | `DEVELOPMENT_TEAM` | `CKJU28R49D` |
-| `APP_BUNDLE_IDENTIFIER` | `ml.mrs1669.notti`（テストターゲットは `.Tests` / `.UITests` を付けて派生） |
+| `APP_BUNDLE_IDENTIFIER` | `jp.shilokuma.notti`（テストターゲットは `.Tests` / `.UITests` を付けて派生） |
 | `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` | アプリのバージョン / ビルド番号 |
 | `IPHONEOS_DEPLOYMENT_TARGET` | 最低サポート OS |
 
@@ -56,7 +56,7 @@ template-app-ios と同じく Archive は `main`、Upload は `develop` / `relea
 | `APPLE_API_KEY_ID` | API Key の Key ID |
 | `APPLE_API_ISSUER_ID` | API Key の Issuer ID |
 
-アップロード先として、App Store Connect に Bundle ID `ml.mrs1669.notti` のアプリをあらかじめ登録しておく必要があります。
+アップロード先として、App Store Connect に Bundle ID `jp.shilokuma.notti` のアプリをあらかじめ登録しておく必要があります。
 
 ## 構成
 
