@@ -1,43 +1,23 @@
 name: Build
 
+# assets/** はスクリーンショット置き場でアプリのコードを含まないため除外する。
 on:
   push:
     branches:
       - '**'
+      - '!assets/**'
   pull_request:
 
+permissions:
+  contents: read
+
+# 同じブランチへの連続 push では古い実行をキャンセルする
 concurrency:
-  group: build-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: ${{ github.ref_name }}
-    runs-on: macos-latest
-
-    steps:
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      # .xcodeproj はコミットしていないので project.yml から生成する
-      - name: Generate Xcode project
-        run: xcodegen generate
-
-      - name: Build and test
-        run: |
-          # 最新の iOS ランタイムに存在する iPhone シミュレータを UDID で選ぶ
-          # （名前だけの指定は OS:latest を暗黙に要求し、古いランタイムにしかないデバイスだと解決できない）
-          device=$(xcrun simctl list devices available -j | jq -r '.devices | to_entries | map(select(.key | contains("SimRuntime.iOS"))) | sort_by(.key | capture("iOS-(?<maj>[0-9]+)-(?<min>[0-9]+)") | [(.maj|tonumber),(.min|tonumber)]) | reverse | map(.value[] | select(.name | startswith("iPhone"))) | .[0].udid')
-          echo "Using simulator: $device"
-          xcodebuild test \
-            -project notti.xcodeproj \
-            -scheme notti \
-            -destination "platform=iOS Simulator,id=$device" \
-            CODE_SIGNING_ALLOWED=NO
+  build:
+    # push で実行済みのブランチの PR は二重に実行しない（Fork からの PR のみ pull_request で実行）
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    uses: ./.github/workflows/_build.yml
