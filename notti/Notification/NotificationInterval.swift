@@ -19,4 +19,9 @@ nonisolated enum NotificationInterval: Int, CaseIterable, Codable, Sendable {
     var timeInterval: TimeInterval {
         TimeInterval(hours * 60 * 60)
     }
+
+    /// 画面に出す表記
+    var label: String {
+        "\(hours) 時間ごと"
+    }
 }
