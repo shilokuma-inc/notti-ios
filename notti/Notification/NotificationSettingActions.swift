@@ -29,6 +29,8 @@ struct NotificationSettingActions {
 
     /// 追加・編集画面の入力を保存し、通知を登録し直す
     ///
+    /// 編集で文言か間隔が変わった ON の通知は、保存した時刻を新しい起点にする。変更が無ければ登録し直さない。
+    ///
     /// - Parameter setting: 編集中の設定。nil なら新しく追加する（追加した通知は ON で、追加した時刻が起点になる）
     /// - Returns: 保存した設定と、通知センターへの反映
     @discardableResult
@@ -42,12 +44,14 @@ struct NotificationSettingActions {
         let message = message.trimmingCharacters(in: .whitespacesAndNewlines)
         let target: NotificationSetting
         if let setting {
+            // 登録し直すと登録した時刻から数え直しになるため、変更が無ければ何もしない
+            guard setting.message != message || setting.interval != interval else {
+                return (setting, Task {})
+            }
             target = setting
-            let isChanged = target.message != message || target.interval != interval
             target.message = message
             target.interval = interval
-            // 登録し直すと登録した時刻から数え直しになるため、起点も合わせる
-            if isChanged && target.isEnabled {
+            if target.isEnabled {
                 target.startDate = now
             }
         } else {

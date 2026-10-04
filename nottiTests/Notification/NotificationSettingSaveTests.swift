@@ -65,15 +65,19 @@ struct NotificationSettingSaveTests {
     }
 
     @Test
-    func editingWithoutChangesKeepsStartDate() async {
+    func editingWithoutChangesDoesNotReschedule() async {
         let context = container.mainContext
         let start = now.addingTimeInterval(-600)
         let setting = NotificationSetting(message: "水を飲む", startDate: start)
         context.insert(setting)
+        await actions.sync(setting)
+        let removedBefore = center.removedIdentifiers.count
 
-        await actions.save(message: "水を飲む", interval: .oneHour, to: setting, in: context, now: now).task.value
+        await actions.save(message: "水を飲む ", interval: .oneHour, to: setting, in: context, now: now).task.value
 
         #expect(setting.startDate == start)
+        #expect(center.removedIdentifiers.count == removedBefore)
+        #expect(center.pending.count == 1)
     }
 
     @Test
