@@ -12,9 +12,12 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.notificationScheduler) private var scheduler
+    @Environment(\.notificationAuthorizer) private var authorizer
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \NotificationSetting.createdAt) private var settings: [NotificationSetting]
     @State private var isAdding = false
     @State private var editingSetting: NotificationSetting?
+    @State private var authorization = NotificationAuthorization.allowed
 
     private var actions: NotificationSettingActions {
         NotificationSettingActions(scheduler: scheduler)
@@ -23,6 +26,11 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
+                if authorization == .denied {
+                    Section {
+                        NotificationDeniedNotice()
+                    }
+                }
                 ForEach(settings) { setting in
                     NotificationRow(setting: setting, isEnabled: isEnabledBinding(for: setting)) {
                         editingSetting = setting
@@ -33,7 +41,7 @@ struct ContentView: View {
                 }
             }
             .overlay {
-                if settings.isEmpty {
+                if settings.isEmpty && authorization != .denied {
                     ContentUnavailableView(
                         "通知がありません",
                         systemImage: "bell.slash",
@@ -49,12 +57,33 @@ struct ContentView: View {
                     }
                 }
             }
-            .sheet(isPresented: $isAdding) {
+            .sheet(isPresented: $isAdding, onDismiss: requestAuthorizationIfEnabled) {
                 NotificationEditView()
             }
-            .sheet(item: $editingSetting) { setting in
+            .sheet(item: $editingSetting, onDismiss: requestAuthorizationIfEnabled) { setting in
                 NotificationEditView(setting: setting)
             }
+            .task {
+                authorization = await authorizer.authorization()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // 設定アプリで許可を変えて戻ってきたときに案内を更新する
+                if phase == .active {
+                    Task {
+                        authorization = await authorizer.authorization()
+                    }
+                }
+            }
+        }
+    }
+
+    /// ON の通知があるときだけ許可を求める（通知を使い始めた時点で尋ねる）
+    private func requestAuthorizationIfEnabled() {
+        guard settings.contains(where: \.isEnabled) else {
+            return
+        }
+        Task {
+            authorization = await authorizer.requestIfNeeded()
         }
     }
 
@@ -63,6 +92,7 @@ struct ContentView: View {
             setting.isEnabled
         } set: { isEnabled in
             actions.setEnabled(isEnabled, for: setting)
+            requestAuthorizationIfEnabled()
         }
     }
 }
