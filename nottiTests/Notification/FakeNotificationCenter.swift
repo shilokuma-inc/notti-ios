@@ -15,9 +15,21 @@ final class FakeNotificationCenter: NotificationCenterProtocol, @unchecked Senda
     private let lock = NSLock()
     private var storage: [String: UNNotificationRequest]
     private var removedIdentifiersStorage: [[String]] = []
+    private var statusStorage: UNAuthorizationStatus
+    private var requestedOptionsStorage: [UNAuthorizationOptions] = []
+    private let grantsAuthorization: Bool
 
-    init(pending: [UNNotificationRequest] = []) {
+    /// - Parameters:
+    ///   - status: 許可状態の初期値
+    ///   - grantsAuthorization: 許可を求められたときにユーザーが許可するかどうか
+    init(
+        pending: [UNNotificationRequest] = [],
+        status: UNAuthorizationStatus = .authorized,
+        grantsAuthorization: Bool = true
+    ) {
         storage = Dictionary(uniqueKeysWithValues: pending.map { ($0.identifier, $0) })
+        statusStorage = status
+        self.grantsAuthorization = grantsAuthorization
     }
 
     /// 保留中の通知（identifier → request）
@@ -28,6 +40,11 @@ final class FakeNotificationCenter: NotificationCenterProtocol, @unchecked Senda
     /// `removePendingNotificationRequests` に渡された identifier（呼ばれた順）
     var removedIdentifiers: [[String]] {
         lock.withLock { removedIdentifiersStorage }
+    }
+
+    /// `requestAuthorization` に渡された options（呼ばれた順）
+    var requestedOptions: [UNAuthorizationOptions] {
+        lock.withLock { requestedOptionsStorage }
     }
 
     func add(_ request: UNNotificationRequest) async throws {
@@ -45,5 +62,17 @@ final class FakeNotificationCenter: NotificationCenterProtocol, @unchecked Senda
                 storage[identifier] = nil
             }
         }
+    }
+
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool {
+        lock.withLock {
+            requestedOptionsStorage.append(options)
+            statusStorage = grantsAuthorization ? .authorized : .denied
+            return grantsAuthorization
+        }
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        lock.withLock { statusStorage }
     }
 }
