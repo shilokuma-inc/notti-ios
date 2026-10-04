@@ -37,8 +37,35 @@ nonisolated struct NotificationScheduler: Sendable {
         await center.removePendingNotificationRequests(withIdentifiers: [identifier] + derived)
     }
 
+    /// 通知センターに登録済みの通知（identifier → 内容）
+    func pendingNotifications() async -> [String: PendingNotification] {
+        let requests = await center.pendingNotificationRequests()
+        return Dictionary(requests.map { request in
+            let trigger = request.trigger as? UNTimeIntervalNotificationTrigger
+            let notification = PendingNotification(
+                body: request.content.body,
+                timeInterval: trigger?.timeInterval,
+                repeats: request.trigger?.repeats ?? false
+            )
+            return (request.identifier, notification)
+        }) { first, _ in first }
+    }
+
+    /// identifier を指定して通知を止める
+    func remove(identifiers: [String]) async {
+        await center.removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
     /// 通知設定ごとの固定の identifier
     static func identifier(for id: UUID) -> String {
         id.uuidString
     }
+}
+
+/// 通知センターに登録済みの通知 1 件の内容。保存済みの設定と食い違っていないかを調べるのに使う
+nonisolated struct PendingNotification: Equatable, Sendable {
+    var body: String
+    /// `UNTimeIntervalNotificationTrigger` の間隔。ほかのトリガーなら nil
+    var timeInterval: TimeInterval?
+    var repeats: Bool
 }

@@ -26,6 +26,10 @@ struct NottiApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .task {
+                    await NotificationReconciler(scheduler: NotificationScheduler())
+                        .reconcile(in: modelContainer.mainContext)
+                }
         }
         .modelContainer(modelContainer)
     }
