@@ -37,4 +37,10 @@ final class NotificationSetting {
         self.startDate = startDate
         self.createdAt = createdAt
     }
+
+    /// 繰り返す間隔。保存値が選択肢に無い場合は 1 時間として扱う
+    var interval: NotificationInterval {
+        get { NotificationInterval(rawValue: intervalHours) ?? .oneHour }
+        set { intervalHours = newValue.hours }
+    }
 }

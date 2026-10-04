@@ -14,10 +14,10 @@ final class NottiUITests: XCTestCase {
     }
 
     @MainActor
-    func testLaunchShowsContentView() throws {
+    func testLaunchShowsNotificationList() throws {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["Hello, world!"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["通知"].waitForExistence(timeout: 5))
     }
 }
