@@ -22,9 +22,7 @@ struct ContentView: View {
         NavigationStack {
             List {
                 ForEach(settings) { setting in
-                    NotificationRow(setting: setting) { isEnabled in
-                        actions.setEnabled(isEnabled, for: setting)
-                    }
+                    NotificationRow(setting: setting, isEnabled: isEnabledBinding(for: setting))
                 }
                 .onDelete { offsets in
                     actions.delete(offsets.map { settings[$0] }, from: modelContext)
@@ -40,6 +38,14 @@ struct ContentView: View {
                 }
             }
             .navigationTitle("通知")
+        }
+    }
+
+    private func isEnabledBinding(for setting: NotificationSetting) -> Binding<Bool> {
+        Binding {
+            setting.isEnabled
+        } set: { isEnabled in
+            actions.setEnabled(isEnabled, for: setting)
         }
     }
 }
