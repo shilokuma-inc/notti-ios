@@ -8,10 +8,13 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 @main
 struct NottiApp: App {
     private let modelContainer: ModelContainer
+    /// 通知センターは delegate を弱参照で持つため、ここで保持する
+    private let notificationDelegate = NotificationDelegate()
 
     init() {
         do {
@@ -21,6 +24,7 @@ struct NottiApp: App {
         } catch {
             fatalError("ModelContainer を作成できません: \(error)")
         }
+        UNUserNotificationCenter.current().delegate = notificationDelegate
     }
 
     var body: some Scene {
