@@ -1,0 +1,186 @@
+name: Metadata/App Store
+
+# App Store の説明文・キーワード・プロモーションテキスト・URL を App Store Connect に反映する。
+#
+# 元ネタは AppStore/metadata/<言語>.json と shared.json。欠損と文字数超過は
+# Verify/App Store metadata が PR の時点で落とすので、ここまで来たものは通る前提。
+#
+# 反映先は「編集できる状態のバージョン」だけ。審査中・配信済みのバージョンには触らない。
+# mode:
+#   dry-run … App Store Connect の現在値との差分だけを出して何も書き込まない（既定）
+#   upload  … 差分を App Store Connect に書き込む
+#   export  … App Store Connect の現在値を AppStore/metadata/*.json の形式で書き出す
+#             （Job Summary と artifact に出す。リポジトリには書き込まないので、取り込むなら手でコミットする）
+# スクリーンショットと違って撮影が要らないので数十秒で終わる。
+#
+# App Store Connect に jp.shilokuma.notti のアプリが作られるまでは、アプリが見つからずに失敗する。
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '動作。dry-run: 差分だけ出す / upload: 反映する / export: 現在値を JSON に書き出す'
+        type: choice
+        options:
+          - dry-run
+          - upload
+          - export
+        default: dry-run
+      languages:
+        description: '対象の言語（カンマ区切り）。空なら languages.json の全言語（いまは ja だけ）'
+        required: false
+        default: ''
+      app_version:
+        description: '対象のバージョン。空なら編集できるバージョンを自動で選ぶ'
+        required: false
+        default: ''
+      missing_locales:
+        description: 'App Store Connect にその言語が無いときの扱い（dry-run / upload のみ）'
+        type: choice
+        options:
+          - fail
+          - skip
+          - create
+        default: fail
+
+jobs:
+  metadata:
+    name: ${{ inputs.mode }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # App Store Connect へは API Key で書き込むので、GitHub のトークンは読み取りだけでよい
+    permissions:
+      contents: read
+
+    env:
+      EXPORT_DIR: ${{ github.workspace }}/build/app-store-metadata
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify metadata
+        if: ${{ inputs.mode != 'export' }}
+        env:
+          LANGUAGES: ${{ inputs.languages }}
+        run: python3 Tools/upload_metadata.py --check --languages "$LANGUAGES"
+
+      - name: Create Private Key
+        # Secrets はシェル展開ではなく env 経由で渡す。秘密鍵はリポジトリ配下ではなく RUNNER_TEMP に置く（_archive.yml と同じ）
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/private_keys"
+          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/private_keys/AuthKey.p8"
+
+      - name: Install PyJWT
+        run: |
+          set -euo pipefail
+          # PyJWT は標準では入っていないので、この実行かぎりの venv に入れる
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --disable-pip-version-check pyjwt cryptography
+
+      - name: Upload to App Store Connect
+        if: ${{ inputs.mode != 'export' }}
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY_PATH: ${{ runner.temp }}/private_keys/AuthKey.p8
+          LANGUAGES: ${{ inputs.languages }}
+          APP_VERSION: ${{ inputs.app_version }}
+          MISSING_LOCALES: ${{ inputs.missing_locales }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          options=(--missing-locales "$MISSING_LOCALES")
+          if [ -n "$LANGUAGES" ]; then
+            options+=(--languages "$LANGUAGES")
+          fi
+          if [ -n "$APP_VERSION" ]; then
+            options+=(--app-version "$APP_VERSION")
+          fi
+          if [ "$MODE" = "dry-run" ]; then
+            options+=(--dry-run)
+          fi
+
+          # bundle id は project.pbxproj と Configs/Project.xcconfig から読む（ワークフローに書き写すと二重管理になるため）
+          .venv/bin/python -u Tools/upload_metadata.py "${options[@]}" | tee "$RUNNER_TEMP/upload.log"
+
+      - name: Export current values
+        id: export
+        if: ${{ inputs.mode == 'export' }}
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY_PATH: ${{ runner.temp }}/private_keys/AuthKey.p8
+          LANGUAGES: ${{ inputs.languages }}
+          APP_VERSION: ${{ inputs.app_version }}
+        run: |
+          set -euo pipefail
+          options=()
+          if [ -n "$LANGUAGES" ]; then
+            options+=(--languages "$LANGUAGES")
+          fi
+          if [ -n "$APP_VERSION" ]; then
+            options+=(--app-version "$APP_VERSION")
+          fi
+
+          # 既存の JSON の _comment を引き継ぐため、リポジトリの JSON をコピーした上に書き出す
+          mkdir -p "$EXPORT_DIR"
+          cp AppStore/metadata/*.json "$EXPORT_DIR"/ 2>/dev/null || true
+          marker="$RUNNER_TEMP/export-started"
+          touch "$marker"
+          .venv/bin/python -u Tools/upload_metadata.py --export \
+            --metadata-dir "$EXPORT_DIR" \
+            ${options[@]+"${options[@]}"} \
+            | tee "$RUNNER_TEMP/upload.log"
+
+          # App Store Connect に現在値が無い言語・項目は書き出されず、コピーしたリポジトリの値のまま残る。
+          # それを現在値として Summary と artifact に出さないよう、書き出されなかった JSON は消す
+          find "$EXPORT_DIR" -name '*.json' ! -newer "$marker" -print -delete \
+            | sed 's|^|書き出されなかったので除外: |' | tee -a "$RUNNER_TEMP/upload.log"
+
+      - name: Upload exported metadata as artifact
+        if: ${{ inputs.mode == 'export' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-store-metadata
+          path: ${{ env.EXPORT_DIR }}
+          if-no-files-found: warn
+
+      - name: Summary
+        if: always()
+        env:
+          MODE: ${{ inputs.mode }}
+          EXPORT_OUTCOME: ${{ steps.export.outcome }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## App Store のメタデータ（${MODE}）"
+            echo
+            case "$MODE" in
+              dry-run) echo "- 反映: しない（現在値との差分だけ）" ;;
+              upload)  echo "- 反映: する" ;;
+              export)  echo "- 反映: しない（現在値を JSON に書き出し。artifact \`app-store-metadata\` から取れる）" ;;
+            esac
+            echo
+            if [ -f "$RUNNER_TEMP/upload.log" ]; then
+              echo '```diff'
+              cat "$RUNNER_TEMP/upload.log"
+              echo '```'
+            fi
+            # export が失敗したときは、EXPORT_DIR に残っているのはリポジトリの JSON のコピーなので現在値として出さない
+            if [ "$MODE" = "export" ] && [ "$EXPORT_OUTCOME" = "success" ] && [ -d "$EXPORT_DIR" ]; then
+              for file in "$EXPORT_DIR"/*.json; do
+                [ -f "$file" ] || continue
+                echo
+                echo "### AppStore/metadata/$(basename "$file")"
+                echo
+                echo '```json'
+                cat "$file"
+                echo '```'
+              done
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
