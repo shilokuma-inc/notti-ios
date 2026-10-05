@@ -21,8 +21,15 @@ shilokuma-inc/template-app-ios から作った SwiftUI アプリ。アプリの�
 - 署名情報・Bundle ID・バージョン・Deployment Target は `Configs/Project.xcconfig` に集約し、pbxproj には書かない。
 - Swift 6 言語モード（strict concurrency complete）。
 - テストは `nottiTests`（Swift Testing）と `nottiUITests`（XCTest）。
-- CI は `.github/workflows/_build.yml` / `_archive.yml` を再利用ワークフローとして呼ぶ。
-  Archive / Upload は Secrets 未設定のため手動実行のみにしてある。
+- CI は `.github/workflows/_build.yml` / `_archive.yml` を再利用ワークフローとして呼ぶ。Secrets は org 共有のもの。
+  Upload は `develop` / `release/**` への push ＋手動実行、Archive は `main` への push ＋手動実行。
+  ビルド番号はアップロード時に Xcode が自動で採番する（`_archive.yml` がランナー上の ExportOptions の
+  `manageAppVersionAndBuildNumber` を true にする）ので、`CURRENT_PROJECT_VERSION` は手で上げない。
+- App Store のメタデータ（`AppStore/metadata/`）とスクリーンショット（`AppStore/screenshots.json`）は
+  `Metadata/App Store` / `Screenshots/App Store` の手動実行で反映する。PR では `Verify/App Store metadata` が検査する。
+  いまの値は仮。App Store Connect にアプリを作るまで Upload / Metadata / Screenshots は失敗する。
+- 撮影モードは `notti/Screenshot/ScreenshotDemo.swift`（起動引数 `-screenshot-demo`）。画面を足すときは
+  `ScreenshotDemo.Scene` と `AppStore/screenshots.json` の `scenes` を揃える（verify が突き合わせる）。
 
 ## ブランチ運用
 
