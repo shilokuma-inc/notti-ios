@@ -76,3 +76,17 @@ final class FakeNotificationCenter: NotificationCenterProtocol, @unchecked Senda
         lock.withLock { statusStorage }
     }
 }
+
+extension NotificationScheduler {
+    /// テスト用の暦。東京時間で固定する
+    static let testCalendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        return calendar
+    }()
+
+    /// 偽の通知センターを使うスケジューラ。おやすみ時間は保存済みの値に左右されないよう引数で固定する
+    static func fake(_ center: FakeNotificationCenter, quietHours: QuietHours = .default) -> Self {
+        Self(center: center, quietHours: { quietHours }, calendar: testCalendar)
+    }
+}

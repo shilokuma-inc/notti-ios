@@ -14,9 +14,9 @@ struct NotificationSchedulerTests {
     @Test(arguments: NotificationInterval.allCases)
     func scheduleAddsRepeatingTimeIntervalRequest(interval: NotificationInterval) async throws {
         let center = FakeNotificationCenter()
-        let scheduler = NotificationScheduler(center: center)
+        let scheduler = NotificationScheduler.fake(center)
 
-        try await scheduler.schedule(id: id, message: "水を飲む", interval: interval)
+        try await scheduler.schedule(id: id, message: "水を飲む", interval: interval, startDate: .now)
 
         let pending = center.pending
         #expect(pending.count == 1)
@@ -37,10 +37,10 @@ struct NotificationSchedulerTests {
     @Test
     func scheduleReplacesRequestWithSameIdentifier() async throws {
         let center = FakeNotificationCenter()
-        let scheduler = NotificationScheduler(center: center)
+        let scheduler = NotificationScheduler.fake(center)
 
-        try await scheduler.schedule(id: id, message: "古い文言", interval: .oneHour)
-        try await scheduler.schedule(id: id, message: "新しい文言", interval: .twentyFourHours)
+        try await scheduler.schedule(id: id, message: "古い文言", interval: .oneHour, startDate: .now)
+        try await scheduler.schedule(id: id, message: "新しい文言", interval: .twentyFourHours, startDate: .now)
 
         let pending = center.pending
         #expect(pending.count == 1)
@@ -54,10 +54,10 @@ struct NotificationSchedulerTests {
     func scheduleKeepsOtherNotifications() async throws {
         let otherID = UUID()
         let center = FakeNotificationCenter()
-        let scheduler = NotificationScheduler(center: center)
+        let scheduler = NotificationScheduler.fake(center)
 
-        try await scheduler.schedule(id: otherID, message: "別の通知", interval: .oneHour)
-        try await scheduler.schedule(id: id, message: "水を飲む", interval: .oneHour)
+        try await scheduler.schedule(id: otherID, message: "別の通知", interval: .oneHour, startDate: .now)
+        try await scheduler.schedule(id: id, message: "水を飲む", interval: .oneHour, startDate: .now)
 
         let identifiers = Set(center.pending.keys)
         #expect(identifiers == [otherID.uuidString, id.uuidString])
@@ -73,7 +73,7 @@ struct NotificationSchedulerTests {
             Self.request(identifier: otherID.uuidString),
             Self.request(identifier: "\(otherID.uuidString)-9")
         ])
-        let scheduler = NotificationScheduler(center: center)
+        let scheduler = NotificationScheduler.fake(center)
 
         await scheduler.remove(id: id)
 
@@ -84,7 +84,7 @@ struct NotificationSchedulerTests {
     @Test
     func removeWithoutPendingRequestsDoesNothingHarmful() async {
         let center = FakeNotificationCenter()
-        let scheduler = NotificationScheduler(center: center)
+        let scheduler = NotificationScheduler.fake(center)
 
         await scheduler.remove(id: id)
 

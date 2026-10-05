@@ -16,7 +16,7 @@ struct NotificationSettingSaveTests {
     private let container: ModelContainer
 
     private var actions: NotificationSettingActions {
-        NotificationSettingActions(scheduler: NotificationScheduler(center: center))
+        NotificationSettingActions(scheduler: NotificationScheduler.fake(center))
     }
 
     init() throws {
