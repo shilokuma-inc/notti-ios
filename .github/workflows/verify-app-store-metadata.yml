@@ -1,0 +1,37 @@
+name: Verify/App Store metadata
+
+# App Store の説明文などは、文字数の上限を超えていると App Store Connect への反映時に弾かれる。
+# 反映（Metadata/App Store）の前に、PR の時点で欠損と文字数超過を機械的に落とす。
+# あわせて、Bundle ID（pbxproj と Configs/Project.xcconfig から読む）が 1 つに決まるか確かめる。
+# JSON を読むだけなので macOS ランナーもビルドも必要ない。
+
+on:
+  pull_request:
+    paths:
+      - 'AppStore/**'
+      - 'Tools/**'
+      # Bundle ID の読み出し元が変わったときも検査する
+      - 'Configs/Project.xcconfig'
+      - 'notti.xcodeproj/project.pbxproj'
+      - '.github/workflows/verify-app-store-metadata.yml'
+
+jobs:
+  verify:
+    name: metadata
+    runs-on: ubuntu-latest
+
+    # PR のコード（Python スクリプト）をそのまま実行するので、トークンは読み取りだけにし、checkout 後の .git/config にも残さない
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify App Store metadata
+        run: python3 Tools/upload_metadata.py --check
+
+      - name: Verify bundle id
+        run: python3 Tools/app_store_config.py bundle-id
