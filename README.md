@@ -32,7 +32,7 @@ open notti.xcodeproj
 
 | 設定 | 値 |
 |---|---|
-| `DEVELOPMENT_TEAM` | `CKJU28R49D` |
+| `DEVELOPMENT_TEAM` | `XU74X3434S` |
 | `APP_BUNDLE_IDENTIFIER` | `jp.shilokuma.notti`（テストターゲットは `.Tests` / `.UITests` を付けて派生） |
 | `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` | アプリのバージョン / ビルド番号 |
 | `IPHONEOS_DEPLOYMENT_TARGET` | 最低サポート OS |
