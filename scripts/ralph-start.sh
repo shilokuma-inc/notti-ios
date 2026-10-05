@@ -28,6 +28,14 @@ fi
 
 TASKS=$(grep -c '^- \[ \]' "$GOAL" || true)
 [[ "$TASKS" -gt 0 ]] || { echo "$GOAL に未完了タスクがありません" >&2; exit 1; }
+# goal.template.md の雛形のまま（{{日本語タイトル}} などが残る）でも未完了タスクの数は数えられてしまう。
+# 起動すると STEP A を飛ばして雛形のタスクに着手するので、プレースホルダが残っていれば止める
+GOAL_LEFTOVER=$(grep -o '{{[^}]*}}' "$GOAL" | sort -u || true)
+if [[ -n "$GOAL_LEFTOVER" ]]; then
+  echo "$GOAL に未置換のプレースホルダが残っています（雛形のままです）:" >&2
+  echo "$GOAL_LEFTOVER" >&2
+  exit 1
+fi
 
 # 見出しだけでは足りない。無制限運用の安全性は 2 つの手順の実体に依存する
 if [[ "$MAX" -eq 0 ]]; then
@@ -61,6 +69,9 @@ $PLAYBOOK を読み、そこに書かれた手順を厳密に実行する。1ス
 STATE_EOF
 
 echo "未完了タスク $TASKS 件 / 上限 $([[ "$MAX" -eq 0 ]] && echo '無制限' || echo "$MAX") / 完了語 $PROMISE"
+echo
+echo "注意: この制御用 worktree の中で、ほかの Claude Code セッションを開いたり cd したりしないこと。"
+echo "      Stop hook に捕まり、そのセッションがループ本体として扱われる。"
 echo
 echo "起動コマンド（スロットのパスは環境に合わせて調整）:"
 echo "  claude --add-dir ../\$(basename \$PWD | sed 's/-ctl\$/-a/') \\"

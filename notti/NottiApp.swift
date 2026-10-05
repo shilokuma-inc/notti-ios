@@ -30,6 +30,8 @@ struct NottiApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                // 撮影モードでは端末の設定によらず同じ配色で撮る。通常の起動では nil（端末の設定のまま）
+                .preferredColorScheme(ScreenshotDemo.colorScheme)
                 .task {
                     await NotificationReconciler(scheduler: NotificationScheduler())
                         .reconcile(in: modelContainer.mainContext)
