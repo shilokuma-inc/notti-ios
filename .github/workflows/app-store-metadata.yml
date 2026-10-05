@@ -130,10 +130,17 @@ jobs:
           # 既存の JSON の _comment を引き継ぐため、リポジトリの JSON をコピーした上に書き出す
           mkdir -p "$EXPORT_DIR"
           cp AppStore/metadata/*.json "$EXPORT_DIR"/ 2>/dev/null || true
+          marker="$RUNNER_TEMP/export-started"
+          touch "$marker"
           .venv/bin/python -u Tools/upload_metadata.py --export \
             --metadata-dir "$EXPORT_DIR" \
             ${options[@]+"${options[@]}"} \
             | tee "$RUNNER_TEMP/upload.log"
+
+          # App Store Connect に現在値が無い言語・項目は書き出されず、コピーしたリポジトリの値のまま残る。
+          # それを現在値として Summary と artifact に出さないよう、書き出されなかった JSON は消す
+          find "$EXPORT_DIR" -name '*.json' ! -newer "$marker" -print -delete \
+            | sed 's|^|書き出されなかったので除外: |' | tee -a "$RUNNER_TEMP/upload.log"
 
       - name: Upload exported metadata as artifact
         if: ${{ inputs.mode == 'export' }}
