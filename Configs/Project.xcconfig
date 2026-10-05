@@ -8,7 +8,7 @@
 //
 
 // Apple Developer Program の Team ID
-DEVELOPMENT_TEAM = CKJU28R49D
+DEVELOPMENT_TEAM = XU74X3434S
 
 // アプリ本体の Bundle Identifier。
 // テストターゲットは $(APP_BUNDLE_IDENTIFIER).Tests / .UITests として派生させる

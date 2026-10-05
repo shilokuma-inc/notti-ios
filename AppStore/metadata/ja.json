@@ -1,0 +1,15 @@
+{
+  "_comment": [
+    "App Store の日本語（ja）の説明文など。上限: description 4000 字 / keywords 合計 100 字（カンマ込み）/ promotionalText 170 字。",
+    "仮の値。アプリのコンセプトが見直し中のため、検査（Tools/upload_metadata.py --check）が通る最小限の文言だけを入れている。App Store Connect に反映する前に人間が書き換える。",
+    "書き換えるときは Metadata/App Store の dry-run で差分を確かめてから upload する。",
+    "promotionalText は省略できる（省略すると App Store Connect 側の値をそのまま残す）。"
+  ],
+  "description": "notti は、忘れたくないことをそっと知らせるリマインダーアプリです。",
+  "keywords": [
+    "リマインダー",
+    "通知",
+    "メモ",
+    "notti"
+  ]
+}
