@@ -1,9 +1,12 @@
 name: Archive
 
-# Archive → IPA Export まで通ることを確認する（アップロードはしない）。
-# IPA Export に Upload と同じ Secrets が必要で、未設定のあいだは手動実行のみにしている。
-# 設定後は template-app-ios と同じく main への push をトリガーに戻す。
+# main への push で Archive → IPA Export まで通ることを確認する（アップロードはしない）。
+# develop / release/** は upload.yml が Archive を含むため、ここでは実行しない。
+# 必要なときに手動でも確認できるよう workflow_dispatch も残す。
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
