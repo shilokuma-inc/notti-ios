@@ -4,6 +4,8 @@
 <dict>
 	<!-- GitHub Secrets の EXPORT_OPTIONS にこのファイルの内容をそのまま登録する -->
 	<!-- teamID を自分の Team ID に書き換える。destination はワークフロー側で export / upload に上書きされる -->
+	<!-- manageAppVersionAndBuildNumber は App Store Connect へのアップロード時だけワークフロー側で true に上書きされる -->
+	<!-- （Xcode が App Store Connect 上の最新ビルド番号を見て自動で増やす。IPA の Export 時はこの値のまま） -->
 	<key>method</key>
 	<string>app-store-connect</string>
 	<key>teamID</key>
