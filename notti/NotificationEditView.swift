@@ -11,6 +11,7 @@ struct NotificationEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(\.notificationScheduler) private var scheduler
+    @StoredQuietHours private var quietHours
 
     /// 編集する設定。nil なら追加
     private let setting: NotificationSetting?
@@ -23,8 +24,29 @@ struct NotificationEditView: View {
         _interval = State(initialValue: setting?.interval ?? .oneHour)
     }
 
+    /// 保存すると、おやすみ時間のせいで一度も鳴らなくなる
+    ///
+    /// 追加・変更して保存すると保存した時刻が起点になる。変更が無ければ起点は今のまま。
+    private var isSilentAfterSave: Bool {
+        let isChanged = setting.map { $0.message != trimmedMessage || $0.interval != interval } ?? true
+        let startDate = isChanged ? .now : setting?.startDate ?? .now
+        let calendar = Calendar.current
+        let plan = NotificationTriggerPlan.make(
+            startDate: startDate,
+            interval: interval,
+            quietHours: quietHours,
+            calendar: calendar,
+            timeZone: calendar.timeZone
+        )
+        return plan.isSilent
+    }
+
+    private var trimmedMessage: String {
+        message.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var canSave: Bool {
-        !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !trimmedMessage.isEmpty
     }
 
     var body: some View {
@@ -44,7 +66,13 @@ struct NotificationEditView: View {
                 } header: {
                     Text("間隔")
                 } footer: {
-                    Text("保存した時刻から数えて、この間隔で繰り返し通知します")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("保存した時刻から数えて、この間隔で繰り返し通知します")
+                        if isSilentAfterSave {
+                            Label("起点の時刻がおやすみ時間に入るため、この通知は鳴りません", systemImage: "moon.zzz")
+                                .foregroundStyle(.orange)
+                        }
+                    }
                 }
             }
             .navigationTitle(setting == nil ? "通知を追加" : "通知を編集")

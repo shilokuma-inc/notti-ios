@@ -95,7 +95,7 @@ struct NotificationReconcilerTests {
     }
 
     private func reconcile(_ center: FakeNotificationCenter) async {
-        await NotificationReconciler(scheduler: NotificationScheduler(center: center))
+        await NotificationReconciler(scheduler: NotificationScheduler.fake(center))
             .reconcile(in: container.mainContext, now: now)
     }
 

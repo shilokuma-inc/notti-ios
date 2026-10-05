@@ -15,7 +15,7 @@ struct NotificationSettingActionsTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
     private var actions: NotificationSettingActions {
-        NotificationSettingActions(scheduler: NotificationScheduler(center: center))
+        NotificationSettingActions(scheduler: NotificationScheduler.fake(center))
     }
 
     @Test

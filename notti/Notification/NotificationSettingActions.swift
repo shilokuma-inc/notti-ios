@@ -80,6 +80,37 @@ struct NotificationSettingActions {
         }
     }
 
+    /// おやすみ時間を変えたときに、すべての通知を登録し直す
+    ///
+    /// おやすみ時間が無くなって登録時刻から数え直しになる通知は、起点日時を登録し直した時刻にする。
+    /// おやすみ時間がある通知は時計の時刻で鳴るので、起点日時は変えない。
+    @discardableResult
+    func rescheduleAll(_ settings: [NotificationSetting], in context: ModelContext, now: Date = .now) -> Task<Void, Never> {
+        for setting in settings where setting.isEnabled {
+            if case .repeatingInterval = scheduler.plan(startDate: setting.startDate, interval: setting.interval) {
+                setting.startDate = now
+            }
+        }
+        save(context)
+        let count = requestCount(for: settings)
+        if count > NotificationScheduler.pendingLimit {
+            Self.logger.warning("登録する通知が上限を超えています: \(count) 件")
+        }
+        return Task {
+            for setting in settings {
+                await sync(setting)
+            }
+        }
+    }
+
+    /// ON の通知をすべて登録したときの通知の数。`NotificationScheduler.pendingLimit` を超えると一部が鳴らない
+    func requestCount(for settings: [NotificationSetting]) -> Int {
+        settings
+            .filter(\.isEnabled)
+            .map { scheduler.plan(startDate: $0.startDate, interval: $0.interval).requestCount }
+            .reduce(0, +)
+    }
+
     /// 設定の内容どおりに通知を登録する（OFF なら止める）
     func sync(_ setting: NotificationSetting) async {
         guard setting.isEnabled else {
@@ -87,7 +118,7 @@ struct NotificationSettingActions {
             return
         }
         do {
-            try await scheduler.schedule(id: setting.id, message: setting.message, interval: setting.interval)
+            try await scheduler.schedule(id: setting.id, message: setting.message, interval: setting.interval, startDate: setting.startDate)
         } catch {
             Self.logger.error("通知を登録できません: \(error.localizedDescription, privacy: .public)")
         }
