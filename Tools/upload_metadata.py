@@ -90,7 +90,11 @@ def load(directory: Path, target: Language, shared: dict[str, str]) -> tuple[dic
     if isinstance(keywords, list) and keywords:
         # App Store Connect にはカンマ区切りの 1 本の文字列として渡す。
         # 区切りのあとに空白を入れると、そのぶん 100 字の枠を食うので詰めて繋ぐ。
-        attributes["keywords"] = ",".join(str(keyword).strip() for keyword in keywords)
+        # null や空文字を str() で "None" や空の区切りにしてしまわないよう、空でない文字列だけを許す
+        if all(isinstance(keyword, str) and keyword.strip() for keyword in keywords):
+            attributes["keywords"] = ",".join(keyword.strip() for keyword in keywords)
+        else:
+            problems.append(f"{path}: keywords に空の要素か文字列以外の要素があります")
     else:
         problems.append(f"{path}: keywords がありません（配列で書く）")
 
