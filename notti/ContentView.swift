@@ -15,8 +15,10 @@ struct ContentView: View {
     @Environment(\.notificationAuthorizer) private var authorizer
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \NotificationSetting.createdAt) private var settings: [NotificationSetting]
+    @StoredQuietHours private var quietHours
     @State private var isAdding = false
     @State private var editingSetting: NotificationSetting?
+    @State private var isEditingQuietHours = false
     @State private var authorization = NotificationAuthorization.allowed
 
     private var actions: NotificationSettingActions {
@@ -31,8 +33,18 @@ struct ContentView: View {
                         NotificationDeniedNotice()
                     }
                 }
+                let requestCount = settings.requestCount(quietHours: quietHours)
+                if requestCount > NotificationScheduler.pendingLimit {
+                    Section {
+                        PendingLimitNotice(requestCount: requestCount)
+                    }
+                }
                 ForEach(settings) { setting in
-                    NotificationRow(setting: setting, isEnabled: isEnabledBinding(for: setting)) {
+                    NotificationRow(
+                        setting: setting,
+                        isEnabled: isEnabledBinding(for: setting),
+                        isSilent: setting.isSilent(quietHours: quietHours)
+                    ) {
                         editingSetting = setting
                     }
                 }
@@ -51,6 +63,11 @@ struct ContentView: View {
             }
             .navigationTitle("通知")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("おやすみ時間", systemImage: quietHours.isActive ? "moon.fill" : "moon") {
+                        isEditingQuietHours = true
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button("追加", systemImage: "plus") {
                         isAdding = true
@@ -62,6 +79,9 @@ struct ContentView: View {
             }
             .sheet(item: $editingSetting, onDismiss: requestAuthorizationIfEnabled) { setting in
                 NotificationEditView(setting: setting)
+            }
+            .sheet(isPresented: $isEditingQuietHours) {
+                QuietHoursView()
             }
             .task {
                 authorization = await authorizer.authorization()
