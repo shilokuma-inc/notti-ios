@@ -21,6 +21,69 @@ struct NotificationSettingTests {
         #expect(setting.isEnabled)
         #expect((before...after).contains(setting.startDate))
         #expect((before...after).contains(setting.createdAt))
+        #expect(setting.kind == .interval)
+        #expect(setting.timeOfDay == TimeOfDay(hour: 9, minute: 0))
+        #expect(setting.repeatRule == .daily)
+        #expect(setting.weekdays.isEmpty)
+        #expect(setting.onceDate == nil)
+    }
+
+    @Test
+    func timeOfDaySettingIsPersisted() throws {
+        let container = try NottiModelContainer.make(inMemory: true)
+        let context = container.mainContext
+        let onceDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let weekly = NotificationSetting(
+            message: "デイリーミッション",
+            kind: .timeOfDay,
+            hour: 21,
+            minute: 30,
+            repeatRule: .weekdays,
+            weekdays: [.monday, .friday]
+        )
+        let once = NotificationSetting(message: "残高を確認", kind: .timeOfDay, repeatRule: .once, onceDate: onceDate)
+        context.insert(weekly)
+        context.insert(once)
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<NotificationSetting>())
+        let fetchedWeekly = try #require(fetched.first { $0.id == weekly.id })
+        let fetchedOnce = try #require(fetched.first { $0.id == once.id })
+
+        #expect(fetchedWeekly.kind == .timeOfDay)
+        #expect(fetchedWeekly.timeOfDay == TimeOfDay(hour: 21, minute: 30))
+        #expect(fetchedWeekly.repeatRule == .weekdays)
+        #expect(fetchedWeekly.weekdays == [.monday, .friday])
+        #expect(fetchedOnce.repeatRule == .once)
+        #expect(fetchedOnce.onceDate == onceDate)
+    }
+
+    @Test
+    func accessorsUpdateStoredValues() {
+        let setting = NotificationSetting(message: "水を飲む")
+
+        setting.kind = .timeOfDay
+        setting.repeatRule = .weekdays
+        setting.weekdays = [.sunday, .saturday]
+        setting.timeOfDay = TimeOfDay(hour: 7, minute: 15)
+
+        #expect(setting.kindRawValue == "timeOfDay")
+        #expect(setting.repeatRawValue == "weekdays")
+        #expect(setting.weekdayMask == 0b100_0001)
+        #expect(setting.hour == 7)
+        #expect(setting.minute == 15)
+    }
+
+    @Test
+    func unknownStoredValuesFallBackToDefaults() {
+        let setting = NotificationSetting(message: "水を飲む")
+        setting.kindRawValue = "unknown"
+        setting.repeatRawValue = "monthly"
+        setting.weekdayMask = 0b1000_0000
+
+        #expect(setting.kind == .interval)
+        #expect(setting.repeatRule == .daily)
+        #expect(setting.weekdays.isEmpty)
     }
 
     @Test
