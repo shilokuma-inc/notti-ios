@@ -29,10 +29,13 @@ struct NotificationRow: View {
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
-                    if setting.isOnceExpired() {
-                        Label("日時を過ぎたため鳴りません", systemImage: "clock.badge.xmark")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
+                    // 一覧を開いたまま日時を過ぎても出るよう、分が変わるたびに判定し直す
+                    TimelineView(.everyMinute) { timeline in
+                        if setting.isOnceExpired(now: timeline.date) {
+                            Label("日時を過ぎたため鳴りません", systemImage: "clock.badge.xmark")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
