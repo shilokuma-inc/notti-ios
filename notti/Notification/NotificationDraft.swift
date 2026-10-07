@@ -34,3 +34,36 @@ extension NotificationSetting {
         onceDate = draft.schedule.onceDate
     }
 }
+
+extension NotificationDraft {
+    /// 保存できない理由
+    nonisolated enum Problem: Equatable, Sendable {
+        /// 文言が空
+        case emptyMessage
+        /// 曜日を選んで繰り返すのに、曜日を 1 つも選んでいない
+        case noWeekday
+        /// 1 回だけの日時が無いか、過ぎている
+        case pastOnceDate
+    }
+
+    /// 保存できない理由。保存できるなら nil
+    ///
+    /// - Parameter now: 1 回だけの日時が過ぎたかどうかの基準。分未満は切り捨てて比べる
+    func problem(now: Date = .now, calendar: Calendar = .current) -> Problem? {
+        if message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return .emptyMessage
+        }
+        guard kind == .timeOfDay else {
+            return nil
+        }
+        switch schedule.repeatRule {
+        case .daily:
+            return nil
+        case .weekdays:
+            return schedule.weekdays.isEmpty ? .noWeekday : nil
+        case .once:
+            let trigger = schedule.onceDate.flatMap { TimeOfDayTrigger.once(at: $0, now: now, calendar: calendar) }
+            return trigger == nil ? .pastOnceDate : nil
+        }
+    }
+}
