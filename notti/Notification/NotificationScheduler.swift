@@ -64,6 +64,9 @@ nonisolated struct NotificationScheduler: Sendable {
                 let identifier = Self.identifier(for: id, hour: time.hour)
                 try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger))
             }
+        case .timeOfDay:
+            // `plan(startDate:interval:)` からは作られない。時刻指定の通知の登録は別途スケジューラに足す
+            break
         }
         return plan
     }
@@ -119,6 +122,9 @@ nonisolated struct NotificationScheduler: Sendable {
                 let notification = PendingNotification(body: message, hour: time.hour, minute: time.minute, repeats: true)
                 return (identifier(for: id, hour: time.hour), notification)
             })
+        case .timeOfDay:
+            // 時刻指定の通知の identifier は、スケジューラが時刻指定の通知を登録するようになってから決める
+            return [:]
         }
     }
 }
@@ -142,6 +148,8 @@ nonisolated extension NotificationTriggerPlan {
             1
         case let .dailyTimes(times):
             times.count
+        case let .timeOfDay(triggers):
+            triggers.count
         }
     }
 }
