@@ -17,6 +17,7 @@ final class FakeNotificationCenter: NotificationCenterProtocol, @unchecked Senda
     private var removedIdentifiersStorage: [[String]] = []
     private var statusStorage: UNAuthorizationStatus
     private var requestedOptionsStorage: [UNAuthorizationOptions] = []
+    private var categoriesStorage: Set<UNNotificationCategory> = []
     private let grantsAuthorization: Bool
 
     /// - Parameters:
@@ -47,6 +48,11 @@ final class FakeNotificationCenter: NotificationCenterProtocol, @unchecked Senda
         lock.withLock { requestedOptionsStorage }
     }
 
+    /// `setNotificationCategories` で登録したカテゴリ
+    var categories: Set<UNNotificationCategory> {
+        lock.withLock { categoriesStorage }
+    }
+
     func add(_ request: UNNotificationRequest) async throws {
         lock.withLock { storage[request.identifier] = request }
     }
@@ -74,6 +80,10 @@ final class FakeNotificationCenter: NotificationCenterProtocol, @unchecked Senda
 
     func authorizationStatus() async -> UNAuthorizationStatus {
         lock.withLock { statusStorage }
+    }
+
+    func setNotificationCategories(_ categories: Set<UNNotificationCategory>) {
+        lock.withLock { categoriesStorage = categories }
     }
 }
 

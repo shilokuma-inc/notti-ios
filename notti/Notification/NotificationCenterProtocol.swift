@@ -15,6 +15,8 @@ nonisolated protocol NotificationCenterProtocol: Sendable {
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
     /// 現在の許可状態。`UNNotificationSettings` は偽物で作れないため、状態だけを返す
     func authorizationStatus() async -> UNAuthorizationStatus
+    /// 通知のカテゴリ（アクション）を登録する。登録済みのものは置き換わる
+    func setNotificationCategories(_ categories: Set<UNNotificationCategory>)
 }
 
 nonisolated extension UNUserNotificationCenter: NotificationCenterProtocol {
