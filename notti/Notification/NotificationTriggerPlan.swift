@@ -11,8 +11,11 @@ nonisolated enum NotificationTriggerPlan: Equatable, Sendable {
     case repeatingInterval(TimeInterval)
     /// 毎日これらの時刻に鳴らす。時刻ごとに 1 本（`UNCalendarNotificationTrigger`）。空なら一度も鳴らない
     case dailyTimes([TimeOfDay])
+    /// 時刻指定の通知。トリガーごとに 1 本（`UNCalendarNotificationTrigger`）。空なら一度も鳴らない（1 回だけの日時を過ぎたなど）
+    case timeOfDay([TimeOfDayTrigger])
 
-    /// 一度も鳴らない（24 時間間隔の起点がおやすみ時間に入っているなど）
+    /// おやすみ時間のせいで一度も鳴らない（24 時間間隔の起点がおやすみ時間に入っているなど）。
+    /// 時刻指定の通知はおやすみ時間を適用しないので、ここには含めない
     var isSilent: Bool {
         self == .dailyTimes([])
     }
@@ -47,5 +50,28 @@ nonisolated enum NotificationTriggerPlan: Equatable, Sendable {
             .filter { !quietHours.contains($0) }
             .sorted()
         return .dailyTimes(times)
+    }
+
+    /// 時刻指定の通知の時刻と繰り返し方から、登録するトリガーを決める
+    ///
+    /// - 毎日: その時刻に繰り返す 1 本
+    /// - 曜日: 選んだ曜日ごとに 1 本（最大 7 本）。曜日が無ければ 0 本
+    /// - 1 回だけ: `onceDate` に鳴らす 1 本（`TimeOfDayTrigger.once(at:now:calendar:)`）。日時が無い・過ぎているなら 0 本
+    ///
+    /// おやすみ時間は適用しない（ユーザーが時刻を明示しているため）
+    ///
+    /// - Parameters:
+    ///   - now: 1 回だけの通知の日時が過ぎたかどうかの基準
+    ///   - calendar: 1 回だけの日時を年・月・日・時・分に分ける暦。タイムゾーンもここから取る
+    static func make(schedule: TimeOfDaySchedule, now: Date, calendar: Calendar) -> Self {
+        switch schedule.repeatRule {
+        case .daily:
+            return .timeOfDay([.daily(schedule.time)])
+        case .weekdays:
+            return .timeOfDay(schedule.weekdays.sorted().map { .weekly($0, schedule.time) })
+        case .once:
+            let once = schedule.onceDate.flatMap { TimeOfDayTrigger.once(at: $0, now: now, calendar: calendar) }
+            return .timeOfDay(once.map { [$0] } ?? [])
+        }
     }
 }

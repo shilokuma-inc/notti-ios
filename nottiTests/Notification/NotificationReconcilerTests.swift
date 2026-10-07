@@ -107,6 +107,7 @@ struct NotificationReconcilerTests {
     private static func request(identifier: String, body: String, interval: TimeInterval) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.body = body
+        content.categoryIdentifier = NotificationScheduler.categoryIdentifier
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: true)
         return UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
     }
