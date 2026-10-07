@@ -21,6 +21,10 @@ struct NotificationSettingActions {
         setting.isEnabled = isEnabled
         if isEnabled {
             setting.startDate = now
+            // 日時を過ぎた 1 回だけの通知は鳴らないので ON にしない（日時を変えてから ON にする）
+            if isEnabledOnce(setting) && scheduler.plan(for: setting, now: now).requestCount == 0 {
+                setting.isEnabled = false
+            }
         }
         return Task {
             await sync(setting, now: now)
@@ -119,6 +123,32 @@ struct NotificationSettingActions {
         }
     }
 
+    /// 日時を過ぎた ON の 1 回だけの通知を OFF にする。もう鳴らないため。削除はせず、日時を変えて使い直せるようにする
+    ///
+    /// 届いた通知は OS が保留から外すので、通知センターには何もしない。
+    /// - Parameter now: 日時が過ぎたかどうかの基準。分未満は切り捨てて比べる
+    /// - Returns: OFF にした設定
+    @discardableResult
+    func disableExpiredOnce(_ settings: [NotificationSetting], in context: ModelContext, now: Date = .now) -> [NotificationSetting] {
+        let expired = settings.filter { isEnabledOnce($0) && scheduler.plan(for: $0, now: now).requestCount == 0 }
+        guard !expired.isEmpty else {
+            return []
+        }
+        for setting in expired {
+            setting.isEnabled = false
+        }
+        save(context)
+        return expired
+    }
+
+    /// ON の 1 回だけの通知のうち、次に日時を迎えるもの。過ぎたものは含めない
+    func nextOnceDate(in settings: [NotificationSetting], now: Date = .now) -> Date? {
+        settings
+            .filter { isEnabledOnce($0) && scheduler.plan(for: $0, now: now).requestCount > 0 }
+            .compactMap(\.onceDate)
+            .min()
+    }
+
     /// ON の通知をすべて登録したときの通知の数。`NotificationScheduler.pendingLimit` を超えると一部が鳴らない
     func requestCount(for settings: [NotificationSetting], now: Date = .now) -> Int {
         settings
@@ -140,6 +170,11 @@ struct NotificationSettingActions {
         } catch {
             Self.logger.error("通知を登録できません: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// ON の、時刻指定で 1 回だけの通知
+    private func isEnabledOnce(_ setting: NotificationSetting) -> Bool {
+        setting.isEnabled && setting.kind == .timeOfDay && setting.repeatRule == .once
     }
 
     private func save(_ context: ModelContext) {

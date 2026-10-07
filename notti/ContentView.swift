@@ -89,10 +89,23 @@ struct ContentView: View {
             .onChange(of: scenePhase) { _, phase in
                 // 設定アプリで許可を変えて戻ってきたときに案内を更新する
                 if phase == .active {
+                    actions.disableExpiredOnce(settings, in: modelContext)
                     Task {
                         authorization = await authorizer.authorization()
                     }
                 }
+            }
+            .task(id: actions.nextOnceDate(in: settings)) {
+                // 一覧を開いたまま 1 回だけの通知の日時を過ぎたら、その場で OFF にする
+                guard let date = actions.nextOnceDate(in: settings) else {
+                    return
+                }
+                do {
+                    try await Task.sleep(for: .seconds(max(date.timeIntervalSinceNow, 0) + 1))
+                } catch {
+                    return
+                }
+                actions.disableExpiredOnce(settings, in: modelContext)
             }
         }
     }

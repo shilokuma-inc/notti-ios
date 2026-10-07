@@ -21,7 +21,7 @@ struct NotificationReconciler {
     /// - それ以外の登録済みの通知（OFF の設定・削除済みの設定・おやすみ時間の変更で不要になった時刻のもの・
     ///   時刻指定の通知で選ばなくなった曜日のもの） → 消す
     ///
-    /// 時刻指定の通知も同じ手順で突き合わせる。1 回だけの通知は、日時を過ぎていれば期待する通知が無い
+    /// 時刻指定の通知も同じ手順で突き合わせる。1 回だけの通知は、日時を過ぎていれば先に OFF にする
     /// （届いた後は OS が保留から外すので、登録し直さない）
     func reconcile(in context: ModelContext, now: Date = .now) async {
         let settings: [NotificationSetting]
@@ -31,6 +31,9 @@ struct NotificationReconciler {
             Self.logger.error("通知設定を読み込めません: \(error.localizedDescription, privacy: .public)")
             return
         }
+
+        // 日時を過ぎた 1 回だけの通知は OFF にする（以降は OFF の設定として、残った通知があれば消す）
+        NotificationSettingActions(scheduler: scheduler).disableExpiredOnce(settings, in: context, now: now)
 
         let pending = await scheduler.pendingNotifications()
         var expectedIdentifiers = Set<String>()
