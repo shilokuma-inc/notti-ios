@@ -6,7 +6,12 @@
 import Foundation
 import UserNotifications
 
-/// 通知設定 1 件ぶんの繰り返し通知を、通知センターへ登録・置き換え・削除する
+/// 通知設定 1 件ぶんの通知を、通知センターへ登録・置き換え・削除する
+///
+/// identifier は設定の ID（`<id>`）を元にする。1 件の設定から複数の通知を作るときは `<id>-<接尾辞>` にし、`remove(id:)` でまとめて消す。
+/// - 間隔（おやすみ時間なし）: `<id>`
+/// - 間隔（おやすみ時間あり）: `<id>-<hour>`（hour は 0〜23）
+/// - 時刻指定: 毎日 `<id>-daily` / 曜日 `<id>-weekday<1〜7>` / 1 回だけ `<id>-once`
 nonisolated struct NotificationScheduler: Sendable {
     /// 通知センターに登録しておける通知の上限。超えた分は OS に破棄される
     static let pendingLimit = 64
@@ -39,6 +44,13 @@ nonisolated struct NotificationScheduler: Sendable {
         )
     }
 
+    /// 時刻指定の通知のトリガーを決める。おやすみ時間は適用しない
+    ///
+    /// - Parameter now: 1 回だけの通知の日時が過ぎたかどうかの基準
+    func plan(schedule: TimeOfDaySchedule, now: Date = .now) -> NotificationTriggerPlan {
+        NotificationTriggerPlan.make(schedule: schedule, now: now, calendar: calendar)
+    }
+
     /// `message` を `startDate` から `interval` ごとに繰り返し通知する。登録済みの同じ `id` の通知は置き換える
     ///
     /// - おやすみ時間が無ければ、登録した時刻から `interval` ごと（14:23 に登録して 1 時間なら 15:23, 16:23…）
@@ -47,12 +59,30 @@ nonisolated struct NotificationScheduler: Sendable {
     /// - Returns: 登録したトリガー
     @discardableResult
     func schedule(id: UUID, message: String, interval: NotificationInterval, startDate: Date) async throws -> NotificationTriggerPlan {
+        let plan = plan(startDate: startDate, interval: interval)
+        try await register(id: id, message: message, plan: plan)
+        return plan
+    }
+
+    /// `message` を `schedule` の時刻に通知する（毎日・曜日・1 回だけ）。登録済みの同じ `id` の通知は置き換える
+    ///
+    /// 1 回だけの日時が過ぎていれば、登録済みの通知を消すだけで何も登録しない
+    ///
+    /// - Returns: 登録したトリガー
+    @discardableResult
+    func schedule(id: UUID, message: String, schedule: TimeOfDaySchedule, now: Date = .now) async throws -> NotificationTriggerPlan {
+        let plan = plan(schedule: schedule, now: now)
+        try await register(id: id, message: message, plan: plan)
+        return plan
+    }
+
+    /// 登録済みの同じ `id` の通知を消してから、`plan` どおりに登録する
+    private func register(id: UUID, message: String, plan: NotificationTriggerPlan) async throws {
         await remove(id: id)
 
         let content = UNMutableNotificationContent()
         content.body = message
         content.sound = .default
-        let plan = plan(startDate: startDate, interval: interval)
         switch plan {
         case let .repeatingInterval(timeInterval):
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: true)
@@ -64,14 +94,16 @@ nonisolated struct NotificationScheduler: Sendable {
                 let identifier = Self.identifier(for: id, hour: time.hour)
                 try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger))
             }
-        case .timeOfDay:
-            // `plan(startDate:interval:)` からは作られない。時刻指定の通知の登録は別途スケジューラに足す
-            break
+        case let .timeOfDay(triggers):
+            for trigger in triggers {
+                let calendarTrigger = UNCalendarNotificationTrigger(dateMatching: trigger.dateComponents, repeats: trigger.repeats)
+                let identifier = Self.identifier(for: id, trigger: trigger)
+                try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: calendarTrigger))
+            }
         }
-        return plan
     }
 
-    /// `id` の通知を止める。おやすみ時間用に派生させた identifier（`<id>-<hour>`）の通知も消す
+    /// `id` の通知を止める。派生させた identifier（`<id>-<hour>` や時刻指定の `<id>-daily` など）の通知も消す
     func remove(id: UUID) async {
         let identifier = Self.identifier(for: id)
         let derivedPrefix = identifier + "-"
@@ -86,11 +118,16 @@ nonisolated struct NotificationScheduler: Sendable {
         return Dictionary(requests.map { request in
             let intervalTrigger = request.trigger as? UNTimeIntervalNotificationTrigger
             let calendarTrigger = request.trigger as? UNCalendarNotificationTrigger
+            let components = calendarTrigger?.dateComponents
             let notification = PendingNotification(
                 body: request.content.body,
                 timeInterval: intervalTrigger?.timeInterval,
-                hour: calendarTrigger?.dateComponents.hour,
-                minute: calendarTrigger?.dateComponents.minute,
+                hour: components?.hour,
+                minute: components?.minute,
+                weekday: components?.weekday,
+                year: components?.year,
+                month: components?.month,
+                day: components?.day,
                 repeats: request.trigger?.repeats ?? false
             )
             return (request.identifier, notification)
@@ -112,6 +149,18 @@ nonisolated struct NotificationScheduler: Sendable {
         "\(identifier(for: id))-\(hour)"
     }
 
+    /// 時刻指定の通知の、トリガーごとの identifier
+    static func identifier(for id: UUID, trigger: TimeOfDayTrigger) -> String {
+        switch trigger {
+        case .daily:
+            "\(identifier(for: id))-daily"
+        case let .weekly(weekday, _):
+            "\(identifier(for: id))-weekday\(weekday.rawValue)"
+        case .once:
+            "\(identifier(for: id))-once"
+        }
+    }
+
     /// `plan` どおりに登録したときの通知（identifier → 内容）。登録済みの通知と食い違っていないかを調べるのに使う
     static func expectedNotifications(id: UUID, message: String, plan: NotificationTriggerPlan) -> [String: PendingNotification] {
         switch plan {
@@ -122,9 +171,21 @@ nonisolated struct NotificationScheduler: Sendable {
                 let notification = PendingNotification(body: message, hour: time.hour, minute: time.minute, repeats: true)
                 return (identifier(for: id, hour: time.hour), notification)
             })
-        case .timeOfDay:
-            // 時刻指定の通知の identifier は、スケジューラが時刻指定の通知を登録するようになってから決める
-            return [:]
+        case let .timeOfDay(triggers):
+            return Dictionary(uniqueKeysWithValues: triggers.map { trigger in
+                let components = trigger.dateComponents
+                let notification = PendingNotification(
+                    body: message,
+                    hour: components.hour,
+                    minute: components.minute,
+                    weekday: components.weekday,
+                    year: components.year,
+                    month: components.month,
+                    day: components.day,
+                    repeats: trigger.repeats
+                )
+                return (identifier(for: id, trigger: trigger), notification)
+            })
         }
     }
 }
@@ -137,6 +198,12 @@ nonisolated struct PendingNotification: Equatable, Sendable {
     /// `UNCalendarNotificationTrigger` の時・分。ほかのトリガーなら nil
     var hour: Int?
     var minute: Int?
+    /// `UNCalendarNotificationTrigger` の曜日（1 = 日曜）。曜日を指定しないトリガーなら nil
+    var weekday: Int?
+    /// `UNCalendarNotificationTrigger` の年・月・日。日付を指定しない（繰り返す）トリガーなら nil
+    var year: Int?
+    var month: Int?
+    var day: Int?
     var repeats: Bool
 }
 

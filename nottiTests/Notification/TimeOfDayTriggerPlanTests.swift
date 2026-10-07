@@ -196,10 +196,9 @@ struct TimeOfDayTriggerPlanTests {
         calendar: Calendar = Self.calendar()
     ) -> NotificationTriggerPlan {
         NotificationTriggerPlan.make(
-            timeOfDay: time,
-            repeatRule: repeatRule,
-            weekdays: weekdays,
-            once: onceDate.flatMap { TimeOfDayTrigger.once(at: $0, now: now, calendar: calendar) }
+            schedule: TimeOfDaySchedule(time: time, repeatRule: repeatRule, weekdays: weekdays, onceDate: onceDate),
+            now: now,
+            calendar: calendar
         )
     }
 
