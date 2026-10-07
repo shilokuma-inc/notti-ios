@@ -104,13 +104,22 @@ nonisolated struct NotificationScheduler: Sendable {
 
     /// `id` の通知を止める。派生させた identifier（`<id>-<hour>` や時刻指定の `<id>-daily` など）の通知も消す
     ///
-    /// - Parameter keepingSnooze: スヌーズで予約した通知（`<id>-snooze`）を残す。登録し直すときに使う
+    /// 止めるとき（`keepingSnooze` が false）は、通知センターに表示中の通知も消す。
+    /// OFF・削除した設定の通知からスヌーズを選んで、もう一度鳴らないようにするため。
+    /// - Parameter keepingSnooze: スヌーズで予約した通知（`<id>-snooze`）と表示中の通知を残す。登録し直すときに使う
     func remove(id: UUID, keepingSnooze: Bool = false) async {
         let identifier = Self.identifier(for: id)
         let derivedPrefix = identifier + "-"
         let pending = await center.pendingNotificationRequests()
         let derived = pending.map(\.identifier).filter { $0.hasPrefix(derivedPrefix) && !(keepingSnooze && Self.isSnooze($0)) }
         await center.removePendingNotificationRequests(withIdentifiers: [identifier] + derived)
+        guard !keepingSnooze else {
+            return
+        }
+        let delivered = await center.deliveredNotificationIdentifiers().filter { $0 == identifier || $0.hasPrefix(derivedPrefix) }
+        if !delivered.isEmpty {
+            center.removeDeliveredNotifications(withIdentifiers: delivered)
+        }
     }
 
     /// 通知センターに登録済みの通知（identifier → 内容）

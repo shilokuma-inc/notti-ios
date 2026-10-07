@@ -92,6 +92,38 @@ struct SnoozeTests {
     }
 
     @Test
+    func turningOffOrDeletingRemovesDeliveredNotificationsSoTheyCannotBeSnoozed() async {
+        let setting = NotificationSetting(message: "デイリー", kind: .timeOfDay)
+        let deleted = NotificationSetting(message: "削除", kind: .timeOfDay)
+        let other = NotificationSetting(message: "そのまま", kind: .timeOfDay)
+        context.insert(setting)
+        context.insert(deleted)
+        context.insert(other)
+        let center = FakeNotificationCenter(delivered: [
+            "\(setting.id.uuidString)-daily",
+            "\(setting.id.uuidString)-snooze",
+            "\(deleted.id.uuidString)-daily",
+            "\(other.id.uuidString)-daily"
+        ])
+        let actions = NotificationSettingActions(scheduler: .fake(center))
+
+        await actions.setEnabled(false, for: setting, now: now).value
+        await actions.delete([deleted], from: context).value
+
+        #expect(center.delivered == ["\(other.id.uuidString)-daily"])
+    }
+
+    @Test
+    func reschedulingKeepsDeliveredNotifications() async throws {
+        let setting = NotificationSetting(message: "デイリー", kind: .timeOfDay)
+        let center = FakeNotificationCenter(delivered: ["\(setting.id.uuidString)-daily"])
+
+        try await NotificationScheduler.fake(center).schedule(setting, now: now)
+
+        #expect(center.delivered == ["\(setting.id.uuidString)-daily"])
+    }
+
+    @Test
     func reconcileKeepsSnoozeOfExistingSettingsOnly() async throws {
         let setting = NotificationSetting(message: "デイリー", kind: .timeOfDay)
         let off = NotificationSetting(message: "OFF", isEnabled: false, kind: .timeOfDay, repeatRule: .once)
