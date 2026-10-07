@@ -20,6 +20,7 @@ struct NotificationReconciler {
     /// - ON の設定で、内容が一致するもの → そのまま（登録し直すと起点から数え直しになるため）
     /// - それ以外の登録済みの通知（OFF の設定・削除済みの設定・おやすみ時間の変更で不要になった時刻のもの・
     ///   時刻指定の通知で選ばなくなった曜日のもの） → 消す
+    /// - スヌーズで予約した通知（`<id>-snooze`） → 設定が残っていれば残す。削除済みの設定のものだけ消す
     ///
     /// 時刻指定の通知も同じ手順で突き合わせる。1 回だけの通知は、日時を過ぎていれば先に OFF にする
     /// （届いた後は OS が保留から外すので、登録し直さない）
@@ -43,7 +44,9 @@ struct NotificationReconciler {
             let expected = NotificationScheduler.expectedNotifications(id: setting.id, message: setting.message, plan: plan)
             expectedIdentifiers.formUnion(expected.keys)
             let identifier = NotificationScheduler.identifier(for: setting.id)
-            let actual = pending.filter { $0.key == identifier || $0.key.hasPrefix(identifier + "-") }
+            let actual = pending.filter { key, _ in
+                (key == identifier || key.hasPrefix(identifier + "-")) && !NotificationScheduler.isSnooze(key)
+            }
             if actual == expected {
                 continue
             }
@@ -57,6 +60,8 @@ struct NotificationReconciler {
                 Self.logger.error("通知を登録できません: \(error.localizedDescription, privacy: .public)")
             }
         }
+        // スヌーズで予約した通知は、設定が残っている限り消さない（1 回だけの通知が OFF になった後のスヌーズも鳴らす）
+        expectedIdentifiers.formUnion(settings.map { NotificationScheduler.snoozeIdentifier(for: $0.id) })
         let stale = Set(pending.keys).subtracting(expectedIdentifiers)
         if !stale.isEmpty {
             await scheduler.remove(identifiers: stale.sorted())
