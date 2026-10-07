@@ -212,6 +212,7 @@ struct QuietHoursSchedulingTests {
     private static func calendarRequest(identifier: String, hour: Int, minute: Int) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.body = "水を飲む"
+        content.categoryIdentifier = NotificationScheduler.categoryIdentifier
         let trigger = UNCalendarNotificationTrigger(dateMatching: DateComponents(hour: hour, minute: minute), repeats: true)
         return UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
     }

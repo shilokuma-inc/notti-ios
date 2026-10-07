@@ -25,6 +25,8 @@ struct NottiApp: App {
             fatalError("ModelContainer を作成できません: \(error)")
         }
         UNUserNotificationCenter.current().delegate = notificationDelegate
+        // 通知のスヌーズのアクションは、カテゴリを登録しておかないと出ない
+        NotificationScheduler().registerCategories()
     }
 
     var body: some Scene {
