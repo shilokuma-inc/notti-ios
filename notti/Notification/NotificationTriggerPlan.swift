@@ -56,19 +56,22 @@ nonisolated enum NotificationTriggerPlan: Equatable, Sendable {
     ///
     /// - 毎日: その時刻に繰り返す 1 本
     /// - 曜日: 選んだ曜日ごとに 1 本（最大 7 本）。曜日が無ければ 0 本
-    /// - 1 回だけ: `once` の 1 本。日時が無い・過ぎている（`once` が nil）なら 0 本
+    /// - 1 回だけ: `onceDate` に鳴らす 1 本（`TimeOfDayTrigger.once(at:now:calendar:)`）。日時が無い・過ぎているなら 0 本
     ///
     /// おやすみ時間は適用しない（ユーザーが時刻を明示しているため）
     ///
-    /// - Parameter once: 1 回だけの通知のトリガー（`TimeOfDayTrigger.once(at:now:calendar:)`）
-    static func make(timeOfDay: TimeOfDay, repeatRule: NotificationRepeat, weekdays: Set<Weekday>, once: TimeOfDayTrigger?) -> Self {
-        switch repeatRule {
+    /// - Parameters:
+    ///   - now: 1 回だけの通知の日時が過ぎたかどうかの基準
+    ///   - calendar: 1 回だけの日時を年・月・日・時・分に分ける暦。タイムゾーンもここから取る
+    static func make(schedule: TimeOfDaySchedule, now: Date, calendar: Calendar) -> Self {
+        switch schedule.repeatRule {
         case .daily:
-            .timeOfDay([.daily(timeOfDay)])
+            return .timeOfDay([.daily(schedule.time)])
         case .weekdays:
-            .timeOfDay(weekdays.sorted().map { .weekly($0, timeOfDay) })
+            return .timeOfDay(schedule.weekdays.sorted().map { .weekly($0, schedule.time) })
         case .once:
-            .timeOfDay(once.map { [$0] } ?? [])
+            let once = schedule.onceDate.flatMap { TimeOfDayTrigger.once(at: $0, now: now, calendar: calendar) }
+            return .timeOfDay(once.map { [$0] } ?? [])
         }
     }
 }

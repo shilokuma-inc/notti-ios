@@ -6,6 +6,11 @@
 import Foundation
 
 extension NotificationSetting {
+    /// 時刻指定の通知をいつ鳴らすか
+    var timeOfDaySchedule: TimeOfDaySchedule {
+        TimeOfDaySchedule(time: timeOfDay, repeatRule: repeatRule, weekdays: weekdays, onceDate: onceDate)
+    }
+
     /// `quietHours` のもとで登録するトリガー。時刻指定の通知はおやすみ時間を適用しない
     ///
     /// - Parameter now: 1 回だけの通知の日時が過ぎたかどうかの基準
@@ -20,12 +25,7 @@ extension NotificationSetting {
                 timeZone: calendar.timeZone
             )
         case .timeOfDay:
-            NotificationTriggerPlan.make(
-                timeOfDay: timeOfDay,
-                repeatRule: repeatRule,
-                weekdays: weekdays,
-                once: onceDate.flatMap { TimeOfDayTrigger.once(at: $0, now: now, calendar: calendar) }
-            )
+            NotificationTriggerPlan.make(schedule: timeOfDaySchedule, now: now, calendar: calendar)
         }
     }
 
