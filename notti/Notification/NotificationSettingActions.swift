@@ -21,6 +21,10 @@ struct NotificationSettingActions {
         setting.isEnabled = isEnabled
         if isEnabled {
             setting.startDate = now
+            // 日時を過ぎた 1 回だけの通知は鳴らないので ON にしない（日時を変えてから ON にする）
+            if isEnabledOnce(setting) && scheduler.plan(for: setting, now: now).requestCount == 0 {
+                setting.isEnabled = false
+            }
         }
         return Task {
             await sync(setting, now: now)

@@ -62,6 +62,21 @@ struct OnceCleanupTests {
     }
 
     @Test
+    func cannotTurnOnExpiredOnceSetting() async {
+        let past = insert(Self.once(at: Self.date(2026, 10, 5, 11, 0)))
+        past.isEnabled = false
+        let future = insert(Self.once(at: Self.date(2026, 10, 5, 13, 0)))
+        future.isEnabled = false
+
+        await actions.setEnabled(true, for: past, now: now).value
+        await actions.setEnabled(true, for: future, now: now).value
+
+        #expect(!past.isEnabled)
+        #expect(future.isEnabled)
+        #expect(Set(center.pending.keys) == ["\(future.id.uuidString)-once"])
+    }
+
+    @Test
     func reconcileDisablesExpiredOnceSetting() async {
         let setting = insert(Self.once(at: Self.date(2026, 10, 1, 9, 0)))
 
