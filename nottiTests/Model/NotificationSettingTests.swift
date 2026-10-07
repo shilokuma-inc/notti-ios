@@ -46,7 +46,7 @@ struct NotificationSettingTests {
         context.insert(once)
         try context.save()
 
-        let fetched = try context.fetch(FetchDescriptor<NotificationSetting>())
+        let fetched = try ModelContext(container).fetch(FetchDescriptor<NotificationSetting>())
         let fetchedWeekly = try #require(fetched.first { $0.id == weekly.id })
         let fetchedOnce = try #require(fetched.first { $0.id == once.id })
 
