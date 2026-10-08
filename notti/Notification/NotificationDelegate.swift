@@ -11,6 +11,7 @@ import UserNotifications
 ///
 /// 通知センターは delegate を弱参照で持つため、`NottiApp` が保持する。
 /// delegate メソッドは任意のスレッドから呼ばれるので、型ごと nonisolated にしている（状態は持たない）。
+/// ただし通知への応答（`userNotificationCenter(_:didReceive:withCompletionHandler:)`）だけは、メインスレッドで完了を知らせる。
 nonisolated final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Sendable {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "notti", category: "Notification")
 
@@ -30,13 +31,36 @@ nonisolated final class NotificationDelegate: NSObject, UNUserNotificationCenter
         Self.foregroundPresentationOptions
     }
 
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+    /// 通知をタップしたとき・アクションを選んだときに呼ばれる
+    ///
+    /// UIKit は `completionHandler` の中でスナップショットを更新し、メインスレッド以外で呼ばれるとアサーションで落ちる。
+    /// async 版で実装すると、型が nonisolated のため `completionHandler` が Swift Concurrency のスレッドで呼ばれてしまう。
+    /// そのため completion handler 版で実装し、`respond` でメインスレッドから呼ぶ。
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
         let content = response.notification.request.content
-        await handle(
+        respond(
             actionIdentifier: response.actionIdentifier,
             settingID: content.userInfo[NotificationScheduler.settingIDKey] as? String,
-            message: content.body
+            message: content.body,
+            completionHandler: completionHandler
         )
+    }
+
+    /// 通知のアクションに応えてから、メインスレッドで `completionHandler` を呼ぶ
+    func respond(
+        actionIdentifier: String,
+        settingID: String?,
+        message: String,
+        completionHandler: @escaping @Sendable () -> Void
+    ) {
+        Task { @MainActor in
+            await handle(actionIdentifier: actionIdentifier, settingID: settingID, message: message)
+            completionHandler()
+        }
     }
 
     /// 通知のアクションに応える。スヌーズなら `NotificationScheduler.snoozeInterval` 後にもう一度通知する
