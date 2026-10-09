@@ -91,20 +91,32 @@ struct NotificationSettingActions {
         return save(draft, to: setting, in: context, now: now)
     }
 
-    /// 「完了するまで繰り返す」通知の、`now` を含む期間を完了にする
+    /// 「完了するまで繰り返す」通知の、`date`（省略したら `now`）を含む期間を完了にする
     ///
     /// 完了の記録を保存し、通知を登録し直す（その期間の残りの催促を消して、次の期間の催促を補充する）。
     /// スヌーズで予約した通知と、通知センターに表示中のこの設定の通知も消す（完了したのにもう一度鳴らないように）。
     /// 完了するまで繰り返さない通知や、すでに完了済みの期間なら何もしない
     ///
+    /// - Parameter date: どの期間を完了にするか。通知のアクションからは通知が届いた日時を渡す（日付が変わってから押しても、届いた日の完了にする）
     /// - Returns: 通知センターへの反映
     @discardableResult
-    func complete(_ setting: NotificationSetting, in context: ModelContext, now: Date = .now) -> Task<Void, Never> {
-        guard let period = setting.completionPeriod(containing: now, calendar: scheduler.calendar), !setting.isCompleted(period) else {
+    func complete(
+        _ setting: NotificationSetting,
+        in context: ModelContext,
+        periodContaining date: Date? = nil,
+        now: Date = .now
+    ) -> Task<Void, Never> {
+        let date = date ?? now
+        guard let period = setting.completionPeriod(containing: date, calendar: scheduler.calendar), !setting.isCompleted(period) else {
             return Task {}
         }
-        context.insert(CompletionRecord(periodStart: period.start, completedAt: now, setting: setting))
-        save(context)
+        let record = CompletionRecord(periodStart: period.start, completedAt: now, setting: setting)
+        context.insert(record)
+        // 保存できなかったら完了にしない（催促を消したまま、完了の記録が残らない状態にしないため）
+        guard save(context) else {
+            context.delete(record)
+            return Task {}
+        }
         return enqueue {
             await scheduler.remove(id: setting.id)
             await sync(setting, now: now)
@@ -235,11 +247,15 @@ struct NotificationSettingActions {
         setting.isEnabled && setting.kind == .timeOfDay && setting.repeatRule == .once
     }
 
-    private func save(_ context: ModelContext) {
+    /// - Returns: 保存できたかどうか
+    @discardableResult
+    private func save(_ context: ModelContext) -> Bool {
         do {
             try context.save()
+            return true
         } catch {
             Self.logger.error("通知設定を保存できません: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 }

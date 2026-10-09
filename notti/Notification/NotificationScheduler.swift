@@ -120,7 +120,7 @@ nonisolated struct NotificationScheduler: Sendable {
     private func register(id: UUID, message: String, plan: NotificationTriggerPlan) async throws {
         await remove(id: id, keepingSnooze: true)
 
-        let content = Self.content(id: id, message: message)
+        let content = Self.content(id: id, message: message, categoryIdentifier: Self.categoryIdentifier(for: plan))
         switch plan {
         case let .repeatingInterval(timeInterval):
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: true)
@@ -268,7 +268,8 @@ nonisolated struct NotificationScheduler: Sendable {
                     year: components.year,
                     month: components.month,
                     day: components.day,
-                    repeats: false
+                    repeats: false,
+                    categoryIdentifier: untilDoneCategoryIdentifier
                 )
                 return (identifier(for: id, nagAt: components), notification)
             }) { first, _ in first }
@@ -281,17 +282,35 @@ nonisolated struct NotificationScheduler: Sendable {
 nonisolated extension NotificationScheduler {
     /// 登録する通知に付けるカテゴリ。スヌーズのアクションを持つ
     static let categoryIdentifier = "notti.reminder"
+    /// 「完了するまで繰り返す」通知の催促に付けるカテゴリ。完了とスヌーズのアクションを持つ
+    static let untilDoneCategoryIdentifier = "notti.untilDone"
     /// スヌーズのアクション
     static let snoozeActionIdentifier = "notti.snooze"
+    /// 完了のアクション。アプリを開かずに、通知が届いた期間を完了にする
+    static let completeActionIdentifier = "notti.complete"
     /// スヌーズしてから、もう一度鳴らすまでの時間（10 分）
     static let snoozeInterval: TimeInterval = 600
     /// 通知の userInfo に入れる設定の ID のキー。スヌーズの identifier を作るのに使う
     static let settingIDKey = "settingID"
 
-    /// 通知のカテゴリ。アクションは「10 分後にもう一度」の 1 つ
+    /// 通知のカテゴリ。ふだんの通知のアクションは「10 分後にもう一度」の 1 つ。
+    /// 「完了するまで繰り返す」通知の催促は「完了」と「10 分後にもう一度」。「完了」は `.foreground` を付けず、アプリを開かずに保存する
     static var categories: Set<UNNotificationCategory> {
         let snooze = UNNotificationAction(identifier: snoozeActionIdentifier, title: "10 分後にもう一度")
-        return [UNNotificationCategory(identifier: categoryIdentifier, actions: [snooze], intentIdentifiers: [])]
+        let complete = UNNotificationAction(identifier: completeActionIdentifier, title: "完了")
+        return [
+            UNNotificationCategory(identifier: categoryIdentifier, actions: [snooze], intentIdentifiers: []),
+            UNNotificationCategory(identifier: untilDoneCategoryIdentifier, actions: [complete, snooze], intentIdentifiers: [])
+        ]
+    }
+
+    /// `plan` どおりに登録する通知に付けるカテゴリ
+    static func categoryIdentifier(for plan: NotificationTriggerPlan) -> String {
+        if case .untilDone = plan {
+            untilDoneCategoryIdentifier
+        } else {
+            categoryIdentifier
+        }
     }
 
     /// 通知のカテゴリを通知センターに登録する。アプリ起動時に呼ぶ
@@ -300,14 +319,21 @@ nonisolated extension NotificationScheduler {
     }
 
     /// `id` の通知を `interval` 後にもう一度鳴らす。スヌーズで予約済みの通知は置き換える
-    func snooze(id: UUID, message: String, after interval: TimeInterval = snoozeInterval) async throws {
+    ///
+    /// - Parameter categoryIdentifier: スヌーズした通知のカテゴリ。催促をスヌーズしたら、もう一度鳴らす通知からも完了できるようにする
+    func snooze(
+        id: UUID,
+        message: String,
+        categoryIdentifier: String = NotificationScheduler.categoryIdentifier,
+        after interval: TimeInterval = snoozeInterval
+    ) async throws {
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let content = Self.content(id: id, message: message)
+        let content = Self.content(id: id, message: message, categoryIdentifier: categoryIdentifier)
         try await center.add(UNNotificationRequest(identifier: Self.snoozeIdentifier(for: id), content: content, trigger: trigger))
     }
 
-    /// 通知の内容。スヌーズできるようカテゴリと設定の ID を付ける
-    fileprivate static func content(id: UUID, message: String) -> UNMutableNotificationContent {
+    /// 通知の内容。スヌーズ・完了できるようカテゴリと設定の ID を付ける
+    fileprivate static func content(id: UUID, message: String, categoryIdentifier: String) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.body = message
         content.sound = .default
