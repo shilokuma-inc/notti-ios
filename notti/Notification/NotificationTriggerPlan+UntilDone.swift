@@ -10,6 +10,31 @@ nonisolated extension NotificationTriggerPlan {
     /// 完了・アプリの起動のたびに補充するので、完了せずアプリも開かない日がこれより続くと催促が止まる
     static let untilDoneDays = 3
 
+    /// 「完了するまで繰り返す」通知の催促から、登録するトリガーを決める。日時は `untilDoneFireDates` のとおり
+    ///
+    /// 1 件の設定だけで通知センターの上限（`NotificationScheduler.pendingLimit`）を超えないよう、早い順に上限までにする
+    /// （6 時から 30 分ごとなら 3 日で 108 件になる）。ほかの通知と合わせて超える分は `PendingLimitNotice` で知らせる
+    ///
+    /// - Parameter calendar: 日時を年・月・日・時・分に分ける暦。タイムゾーンは持たせず、端末のローカル時刻で解釈させる
+    static func make(
+        schedule: TimeOfDaySchedule,
+        rule: UntilDoneRule,
+        completedPeriodStarts: [Date],
+        now: Date,
+        calendar: Calendar
+    ) -> Self {
+        let dates = untilDoneFireDates(
+            schedule: schedule,
+            rule: rule,
+            completedPeriodStarts: completedPeriodStarts,
+            now: now,
+            calendar: calendar
+        )
+        return .untilDone(dates.prefix(NotificationScheduler.pendingLimit).map {
+            calendar.dateComponents([.year, .month, .day, .hour, .minute], from: $0)
+        })
+    }
+
     /// 「完了するまで繰り返す」通知の催促を鳴らす日時。日付を指定した 1 回きりの通知として 1 本ずつ登録する
     ///
     /// 今日から `days` 日ぶんの各日について、`schedule.time` から 0 時まで `rule.interval` ごとの日時のうち、次を満たすもの:
