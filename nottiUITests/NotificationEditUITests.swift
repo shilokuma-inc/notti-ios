@@ -81,6 +81,44 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["timePicker"].exists)
     }
 
+    @MainActor
+    func testUntilDoneToggleShowsNagSettings() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+
+        app.navigationBars["通知"].buttons["追加"].tap()
+        let field = app.descendants(matching: .any)["messageField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("デイリーミッション")
+        app.buttons["時刻を指定"].tap()
+
+        let toggle = app.switches["repeatsUntilDoneToggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["dayBoundaryPicker"].exists)
+        toggle.switches.firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["dayBoundaryPicker"].waitForExistence(timeout: 5))
+
+        // 曜日を選ぶと、日の区切りの代わりに週の始まりを設定する
+        app.buttons["曜日を選ぶ"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["weekStartTimePicker"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["dayBoundaryPicker"].exists)
+
+        // 1 回だけにはトグルを出さない
+        app.buttons["1 回だけ"].tap()
+        XCTAssertFalse(app.switches["repeatsUntilDoneToggle"].exists)
+
+        app.buttons["毎日"].tap()
+        let save = app.navigationBars["通知を追加"].buttons["保存"]
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        allowNotificationsIfAsked()
+
+        let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "デイリーミッション")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5))
+    }
+
     /// 通知を ON にすると初回だけ出る許可ダイアログ（SpringBoard）を閉じる。2 番目のボタンが「許可」
     @MainActor
     private func allowNotificationsIfAsked() {
