@@ -15,6 +15,12 @@ struct NotificationSettingActions {
 
     let scheduler: NotificationScheduler
 
+    /// 最後に積んだ通知センターへの反映。反映は呼んだ順に 1 つずつ行う
+    ///
+    /// 反映の途中（`await` の間）に次の操作が来ると、登録と削除が入り混じって、後の操作の結果が前の操作に上書きされるため
+    /// （例: 完了の反映が終わる前に取り消すと、取り消した期間の催促が消える）
+    private static var lastSync: Task<Void, Never>?
+
     /// 通知の ON/OFF を切り替える。ON にした時刻を新しい起点日時にする（Q1「設定した時刻から N 時間ごと」）
     @discardableResult
     func setEnabled(_ isEnabled: Bool, for setting: NotificationSetting, now: Date = .now) -> Task<Void, Never> {
@@ -26,7 +32,7 @@ struct NotificationSettingActions {
                 setting.isEnabled = false
             }
         }
-        return Task {
+        return enqueue {
             await sync(setting, now: now)
         }
     }
@@ -63,7 +69,7 @@ struct NotificationSettingActions {
             context.insert(target)
         }
         save(context)
-        let task = Task {
+        let task = enqueue {
             await sync(target, now: now)
         }
         return (target, task)
@@ -99,7 +105,7 @@ struct NotificationSettingActions {
         }
         context.insert(CompletionRecord(periodStart: period.start, completedAt: now, setting: setting))
         save(context)
-        return Task {
+        return enqueue {
             await scheduler.remove(id: setting.id)
             await sync(setting, now: now)
         }
@@ -121,7 +127,7 @@ struct NotificationSettingActions {
             context.delete(record)
         }
         save(context)
-        return Task {
+        return enqueue {
             await sync(setting, now: now)
         }
     }
@@ -134,7 +140,7 @@ struct NotificationSettingActions {
             context.delete(setting)
         }
         save(context)
-        return Task {
+        return enqueue {
             for id in ids {
                 await scheduler.remove(id: id)
             }
@@ -157,7 +163,7 @@ struct NotificationSettingActions {
         if count > NotificationScheduler.pendingLimit {
             Self.logger.warning("登録する通知が上限を超えています: \(count) 件")
         }
-        return Task {
+        return enqueue {
             for setting in settings {
                 await sync(setting, now: now)
             }
@@ -211,6 +217,17 @@ struct NotificationSettingActions {
         } catch {
             Self.logger.error("通知を登録できません: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// 通知センターへの反映を、前に積んだ反映が終わってから行う
+    private func enqueue(_ operation: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
+        let previous = Self.lastSync
+        let task = Task {
+            await previous?.value
+            await operation()
+        }
+        Self.lastSync = task
+        return task
     }
 
     /// ON の、時刻指定で 1 回だけの通知

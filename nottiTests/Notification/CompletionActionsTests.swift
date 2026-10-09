@@ -129,6 +129,22 @@ struct CompletionActionsTests {
     }
 
     @Test
+    func undoRightAfterCompleteKeepsRestOfDay() async throws {
+        let setting = insertDaily()
+        await actions.sync(setting, now: Self.now)
+
+        // 完了の反映を待たずに取り消す
+        let complete = actions.complete(setting, in: context, now: Self.now)
+        let undo = actions.undoCompletion(setting, in: context, now: Self.now)
+        await complete.value
+        await undo.value
+
+        #expect(setting.completions.isEmpty)
+        #expect(center.pending["\(setting.id.uuidString)-nag202610052200"] != nil)
+        #expect(center.pending.count == 2 + 3 + 3)
+    }
+
+    @Test
     func undoCompletionKeepsRecordsOfOtherPeriods() async throws {
         let setting = insertDaily()
         await actions.complete(setting, in: context, now: Self.now.addingTimeInterval(-86_400)).value
