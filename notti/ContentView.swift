@@ -43,10 +43,16 @@ struct ContentView: View {
                     NotificationRow(
                         setting: setting,
                         isEnabled: isEnabledBinding(for: setting),
-                        isSilent: setting.isSilent(quietHours: quietHours)
-                    ) {
-                        editingSetting = setting
-                    }
+                        isSilent: setting.isSilent(quietHours: quietHours),
+                        onEdit: { editingSetting = setting },
+                        onSetCompleted: { isCompleted in
+                            if isCompleted {
+                                actions.complete(setting, in: modelContext)
+                            } else {
+                                actions.undoCompletion(setting, in: modelContext)
+                            }
+                        }
+                    )
                 }
                 .onDelete { offsets in
                     actions.delete(offsets.map { settings[$0] }, from: modelContext)

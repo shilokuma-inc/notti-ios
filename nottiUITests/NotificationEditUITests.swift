@@ -117,6 +117,14 @@ final class NotificationEditUITests: XCTestCase {
 
         let row = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "デイリーミッション")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5))
+
+        // 一覧から完了にして、取り消す
+        let complete = app.buttons["完了にする"]
+        XCTAssertTrue(complete.waitForExistence(timeout: 5))
+        complete.tap()
+        XCTAssertTrue(app.staticTexts["今日は完了済み"].waitForExistence(timeout: 5))
+        app.buttons["完了を取り消す"].tap()
+        XCTAssertTrue(app.staticTexts["今日はまだ完了していません"].waitForExistence(timeout: 5))
     }
 
     /// 通知を ON にすると初回だけ出る許可ダイアログ（SpringBoard）を閉じる。2 番目のボタンが「許可」
