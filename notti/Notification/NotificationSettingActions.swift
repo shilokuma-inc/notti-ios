@@ -85,6 +85,47 @@ struct NotificationSettingActions {
         return save(draft, to: setting, in: context, now: now)
     }
 
+    /// 「完了するまで繰り返す」通知の、`now` を含む期間を完了にする
+    ///
+    /// 完了の記録を保存し、通知を登録し直す（その期間の残りの催促を消して、次の期間の催促を補充する）。
+    /// スヌーズで予約した通知と、通知センターに表示中のこの設定の通知も消す（完了したのにもう一度鳴らないように）。
+    /// 完了するまで繰り返さない通知や、すでに完了済みの期間なら何もしない
+    ///
+    /// - Returns: 通知センターへの反映
+    @discardableResult
+    func complete(_ setting: NotificationSetting, in context: ModelContext, now: Date = .now) -> Task<Void, Never> {
+        guard let period = setting.completionPeriod(containing: now, calendar: scheduler.calendar), !setting.isCompleted(period) else {
+            return Task {}
+        }
+        context.insert(CompletionRecord(periodStart: period.start, completedAt: now, setting: setting))
+        save(context)
+        return Task {
+            await scheduler.remove(id: setting.id)
+            await sync(setting, now: now)
+        }
+    }
+
+    /// `now` を含む期間の完了を取り消す。完了の記録を消し、その期間の残りの催促を登録し直す
+    ///
+    /// - Returns: 通知センターへの反映
+    @discardableResult
+    func undoCompletion(_ setting: NotificationSetting, in context: ModelContext, now: Date = .now) -> Task<Void, Never> {
+        guard let period = setting.completionPeriod(containing: now, calendar: scheduler.calendar) else {
+            return Task {}
+        }
+        let records = setting.completions.filter { period.contains($0.periodStart) }
+        guard !records.isEmpty else {
+            return Task {}
+        }
+        for record in records {
+            context.delete(record)
+        }
+        save(context)
+        return Task {
+            await sync(setting, now: now)
+        }
+    }
+
     /// 通知設定を削除し、登録済みの通知も止める
     @discardableResult
     func delete(_ settings: [NotificationSetting], from context: ModelContext) -> Task<Void, Never> {

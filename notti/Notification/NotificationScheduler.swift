@@ -20,7 +20,8 @@ nonisolated struct NotificationScheduler: Sendable {
 
     private let center: any NotificationCenterProtocol
     private let quietHours: @Sendable () -> QuietHours
-    private let calendar: Calendar
+    /// 鳴らす時刻・完了の期間の計算に使う暦（タイムゾーンもここから取る）
+    let calendar: Calendar
 
     /// - Parameters:
     ///   - quietHours: 登録時に参照するおやすみ時間。既定は保存済みの値
