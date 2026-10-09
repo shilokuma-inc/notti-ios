@@ -122,9 +122,15 @@ final class NotificationEditUITests: XCTestCase {
         let complete = app.buttons["完了にする"]
         XCTAssertTrue(complete.waitForExistence(timeout: 5))
         complete.tap()
-        XCTAssertTrue(app.staticTexts["今日は完了済み"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element(containing: "今日は完了済み", in: app).waitForExistence(timeout: 5))
         app.buttons["完了を取り消す"].tap()
-        XCTAssertTrue(app.staticTexts["今日はまだ完了していません"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element(containing: "今日はまだ完了していません", in: app).waitForExistence(timeout: 5))
+    }
+
+    /// ラベルに `text` を含む要素。行の文言は、編集ボタンのラベルにまとめられることも、個別の文字として出ることもある
+    @MainActor
+    private func element(containing text: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
 
     /// 通知を ON にすると初回だけ出る許可ダイアログ（SpringBoard）を閉じる。2 番目のボタンが「許可」
