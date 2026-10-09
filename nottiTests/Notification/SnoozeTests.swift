@@ -32,9 +32,8 @@ struct SnoozeTests {
     func registersSnoozeCategory() throws {
         scheduler.registerCategories()
 
-        let category = try #require(center.categories.first)
-        #expect(center.categories.count == 1)
-        #expect(category.identifier == NotificationScheduler.categoryIdentifier)
+        let category = try #require(center.categories.first { $0.identifier == NotificationScheduler.categoryIdentifier })
+        #expect(center.categories.count == 2)
         #expect(category.actions.map(\.identifier) == [NotificationScheduler.snoozeActionIdentifier])
         #expect(category.actions.map(\.title) == ["10 分後にもう一度"])
     }
