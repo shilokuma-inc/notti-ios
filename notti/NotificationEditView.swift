@@ -75,6 +75,9 @@ struct NotificationEditView: View {
                     intervalSection
                 case .timeOfDay:
                     timeOfDaySection
+                    if draft.isUntilDoneAvailable {
+                        untilDoneSection
+                    }
                 }
             }
             .navigationTitle(setting == nil ? "通知を追加" : "通知を編集")
@@ -148,11 +151,80 @@ struct NotificationEditView: View {
                 case .pastOnceDate:
                     Label("過ぎた日時は登録できません", systemImage: "exclamationmark.circle")
                         .foregroundStyle(.orange)
+                case .multipleWeekdaysUntilDone:
+                    Label("完了するまで繰り返すときは、曜日を 1 つだけ選んでください", systemImage: "exclamationmark.circle")
+                        .foregroundStyle(.orange)
                 case .emptyMessage, nil:
                     EmptyView()
                 }
             }
         }
+    }
+
+    /// 「完了するまで繰り返す」のトグルと、催促の間隔・日の区切り（毎日）・週の始まり（曜日）
+    private var untilDoneSection: some View {
+        Section {
+            Toggle("完了するまで繰り返す", isOn: $draft.repeatsUntilDone)
+                .accessibilityIdentifier("repeatsUntilDoneToggle")
+                .onChange(of: draft.repeatsUntilDone) { _, isOn in
+                    // 催促を始める曜日は 1 つ。複数選んでいたら、週の中で最初の曜日だけ残す
+                    if isOn, draft.schedule.weekdays.count > 1, let first = firstWeekdayOfWeek(in: draft.schedule.weekdays) {
+                        draft.schedule.weekdays = [first]
+                    }
+                }
+            if draft.repeatsUntilDone {
+                Picker("催促の間隔", selection: $draft.untilDoneRule.interval) {
+                    ForEach(NagInterval.allCases) { interval in
+                        Text(interval.label).tag(interval)
+                    }
+                }
+                switch draft.schedule.repeatRule {
+                case .daily:
+                    timeOfDayPicker("日の区切り", time: $draft.untilDoneRule.dayBoundary)
+                        .accessibilityIdentifier("dayBoundaryPicker")
+                case .weekdays:
+                    Picker("週の始まり", selection: $draft.untilDoneRule.weekStart.weekday) {
+                        ForEach(Weekday.allCases) { weekday in
+                            Text("\(weekday.shortLabel)曜").tag(weekday)
+                        }
+                    }
+                    timeOfDayPicker("週の始まりの時刻", time: $draft.untilDoneRule.weekStart.time)
+                        .accessibilityIdentifier("weekStartTimePicker")
+                case .once:
+                    EmptyView()
+                }
+            }
+        } header: {
+            Text("完了するまで繰り返す")
+        } footer: {
+            if draft.repeatsUntilDone {
+                switch draft.schedule.repeatRule {
+                case .weekdays:
+                    Text("選んだ曜日の時刻から 0 時まで催促し、完了しなければ週の終わりまで毎日催促します。完了すると次の週まで鳴りません")
+                default:
+                    Text("時刻から 0 時まで催促します。完了するとその日は鳴りません。日の区切りより前の完了は前の日の完了になります")
+                }
+            } else {
+                Text("ON にすると、完了にするまで選んだ間隔で催促します")
+            }
+        }
+    }
+
+    /// 週の始まりから数えて最初の曜日
+    private func firstWeekdayOfWeek(in weekdays: Set<Weekday>) -> Weekday? {
+        let start = draft.untilDoneRule.weekStart.weekday.rawValue
+        return weekdays.min { ($0.rawValue - start + 7) % 7 < ($1.rawValue - start + 7) % 7 }
+    }
+
+    private func timeOfDayPicker(_ title: String, time: Binding<TimeOfDay>) -> some View {
+        DatePicker(
+            title,
+            selection: Binding(
+                get: { Self.date(from: time.wrappedValue) },
+                set: { time.wrappedValue = Self.time(from: $0) }
+            ),
+            displayedComponents: .hourAndMinute
+        )
     }
 
     private var timePicker: some View {
@@ -174,6 +246,9 @@ struct NotificationEditView: View {
                 Button {
                     if isSelected {
                         draft.schedule.weekdays.remove(weekday)
+                    } else if draft.repeatsUntilDone {
+                        // 完了するまで繰り返すときは、催促を始める曜日を 1 つだけ選ぶ
+                        draft.schedule.weekdays = [weekday]
                     } else {
                         draft.schedule.weekdays.insert(weekday)
                     }
