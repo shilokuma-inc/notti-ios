@@ -93,6 +93,10 @@ struct ContentView: View {
                     Task {
                         authorization = await authorizer.authorization()
                     }
+                    // 「完了するまで繰り返す」通知の催促は先に登録した日数ぶんしか無いので、前面に戻るたびに補充する
+                    Task {
+                        await NotificationReconciler(scheduler: scheduler).reconcile(in: modelContext)
+                    }
                 }
             }
             .task(id: actions.nextOnceDate(in: settings)) {
