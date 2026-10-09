@@ -8,6 +8,8 @@ import Foundation
 extension NotificationSetting {
     /// 一覧に出す、いつ鳴らすかの表記（例: 「1 時間ごと」「毎日 9:00」「毎週 月・金 21:30」「10月25日 9:30 に 1 回」）
     ///
+    /// 完了するまで繰り返す通知には、催促の間隔を添える（例: 「毎日 21:00・完了まで 30 分ごと」）
+    ///
     /// - Parameter now: 1 回だけの日時に年を添えるかどうかの基準（今年でなければ年を出す）
     func scheduleLabel(now: Date = .now, calendar: Calendar = .current) -> String {
         switch kind {
@@ -16,6 +18,26 @@ extension NotificationSetting {
         case .timeOfDay:
             break
         }
+        let label = timeOfDayLabel(now: now, calendar: calendar)
+        return completionCycle == nil ? label : "\(label)・完了まで \(nagInterval.label)"
+    }
+
+    /// 完了するまで繰り返す通知の、今の期間（今日・今週）を完了済みか。完了するまで繰り返さない通知は nil
+    func isCurrentPeriodCompleted(now: Date = .now, calendar: Calendar = .current) -> Bool? {
+        completionPeriod(containing: now, calendar: calendar).map(isCompleted)
+    }
+
+    /// 一覧に出す、今の期間の完了の状態（例: 「今日は完了済み」「今週はまだ完了していません」）。完了するまで繰り返さない通知は nil
+    func completionStatusLabel(now: Date = .now, calendar: Calendar = .current) -> String? {
+        guard let cycle = completionCycle, let isCompleted = isCurrentPeriodCompleted(now: now, calendar: calendar) else {
+            return nil
+        }
+        let period = cycle == .daily ? "今日" : "今週"
+        return isCompleted ? "\(period)は完了済み" : "\(period)はまだ完了していません"
+    }
+
+    /// 時刻指定の通知の、いつ鳴らすかの表記
+    private func timeOfDayLabel(now: Date, calendar: Calendar) -> String {
         let time = Self.label(of: timeOfDay)
         switch repeatRule {
         case .daily:
