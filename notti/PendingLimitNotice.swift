@@ -17,8 +17,8 @@ struct PendingLimitNotice: View {
             Text(
                 """
                 登録できる通知は \(NotificationScheduler.pendingLimit) 件までですが、\(requestCount) 件になっています。\
-                おやすみ時間があると 1 時間ごとの通知は 1 件で最大 24 件、「完了するまで繰り返す」通知は催促の回数の \
-                \(NotificationTriggerPlan.untilDoneDays) 日ぶん使うため、一部の通知が鳴らないことがあります。\
+                おやすみ時間があると 1 時間ごとの通知は 1 件で最大 24 件使い、「完了するまで繰り返す」通知は \
+                催促を \(NotificationTriggerPlan.untilDoneDays) 日ぶん先に登録するため、一部の通知が鳴らないことがあります。\
                 催促の間隔を長くすると減らせます。
                 """
             )
