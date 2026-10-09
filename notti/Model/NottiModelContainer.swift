@@ -7,7 +7,7 @@ import SwiftData
 
 /// アプリで使う ModelContainer を作る
 enum NottiModelContainer {
-    static let schema = Schema([NotificationSetting.self])
+    static let schema = Schema([NotificationSetting.self, CompletionRecord.self])
     /// 起動引数にこれがあれば、保存先をメモリ上にする（UI テスト用）
     static let inMemoryLaunchArgument = "-inMemoryStore"
 

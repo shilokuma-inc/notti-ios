@@ -73,5 +73,8 @@ struct NotificationSettingMigrationTests {
         #expect(setting.timeOfDay == TimeOfDay(hour: 9, minute: 0))
         #expect(setting.weekdays.isEmpty)
         #expect(setting.onceDate == nil)
+        #expect(!setting.repeatsUntilDone)
+        #expect(setting.untilDoneRule == UntilDoneRule())
+        #expect(setting.completions.isEmpty)
     }
 }
