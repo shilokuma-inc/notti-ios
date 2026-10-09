@@ -110,8 +110,13 @@ struct NotificationSettingActions {
         guard let period = setting.completionPeriod(containing: date, calendar: scheduler.calendar), !setting.isCompleted(period) else {
             return Task {}
         }
-        context.insert(CompletionRecord(periodStart: period.start, completedAt: now, setting: setting))
-        save(context)
+        let record = CompletionRecord(periodStart: period.start, completedAt: now, setting: setting)
+        context.insert(record)
+        // 保存できなかったら完了にしない（催促を消したまま、完了の記録が残らない状態にしないため）
+        guard save(context) else {
+            context.delete(record)
+            return Task {}
+        }
         return enqueue {
             await scheduler.remove(id: setting.id)
             await sync(setting, now: now)
@@ -242,11 +247,15 @@ struct NotificationSettingActions {
         setting.isEnabled && setting.kind == .timeOfDay && setting.repeatRule == .once
     }
 
-    private func save(_ context: ModelContext) {
+    /// - Returns: 保存できたかどうか
+    @discardableResult
+    private func save(_ context: ModelContext) -> Bool {
         do {
             try context.save()
+            return true
         } catch {
             Self.logger.error("通知設定を保存できません: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 }
