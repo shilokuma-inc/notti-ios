@@ -106,6 +106,27 @@ struct UntilDoneSchedulerTests {
     }
 
     @Test
+    func nagsAreCappedAtPendingLimitKeepingSoonest() {
+        let scheduler = NotificationScheduler.fake(FakeNotificationCenter())
+
+        let plan = scheduler.plan(
+            schedule: Self.daily(6, 0),
+            rule: UntilDoneRule(interval: .thirtyMinutes),
+            completedPeriodStarts: [],
+            now: Self.date(2026, 10, 5, 5, 0)
+        )
+
+        guard case let .untilDone(dates) = plan else {
+            Issue.record("催促のトリガーになっていない: \(plan)")
+            return
+        }
+        #expect(dates.count == NotificationScheduler.pendingLimit)
+        #expect(dates.first == DateComponents(year: 2026, month: 10, day: 5, hour: 6, minute: 0))
+        // 1 日 36 件。64 件目は 2 日目の 6:00 + 27 × 30 分 = 19:30
+        #expect(dates.last == DateComponents(year: 2026, month: 10, day: 6, hour: 19, minute: 30))
+    }
+
+    @Test
     func nagIdentifierHasDateAndTime() {
         let components = DateComponents(year: 2026, month: 1, day: 2, hour: 3, minute: 4)
 
