@@ -13,6 +13,9 @@ nonisolated enum NotificationTriggerPlan: Equatable, Sendable {
     case dailyTimes([TimeOfDay])
     /// 時刻指定の通知。トリガーごとに 1 本（`UNCalendarNotificationTrigger`）。空なら一度も鳴らない（1 回だけの日時を過ぎたなど）
     case timeOfDay([TimeOfDayTrigger])
+    /// 「完了するまで繰り返す」通知の催促。日時（年・月・日・時・分）ごとに 1 本（1 回きりの `UNCalendarNotificationTrigger`）。
+    /// 空なら一度も鳴らない（今の期間を完了済みで、先に登録する日数のうちに次の催促が無いなど）
+    case untilDone([DateComponents])
 
     /// おやすみ時間のせいで一度も鳴らない（24 時間間隔の起点がおやすみ時間に入っているなど）。
     /// 時刻指定の通知はおやすみ時間を適用しないので、ここには含めない

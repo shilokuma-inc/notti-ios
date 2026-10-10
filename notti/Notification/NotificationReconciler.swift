@@ -9,7 +9,8 @@ import SwiftData
 
 /// 保存済みの通知設定と、通知センターに登録済みの通知を突き合わせて整合させる
 ///
-/// アプリ起動時に呼ぶ。OS 側の登録はアプリの再インストールや別経路の変更で保存内容とずれることがあるため。
+/// アプリ起動時と、アプリが前面に戻ったときに呼ぶ。OS 側の登録はアプリの再インストールや別経路の変更で保存内容とずれることがあるため。
+/// 「完了するまで繰り返す」通知の催促は日付を指定した 1 回きりの通知で、先に登録した日数ぶんしか無いので、ここで補充する。
 struct NotificationReconciler {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "notti", category: "Notification")
 
@@ -24,6 +25,9 @@ struct NotificationReconciler {
     ///
     /// 時刻指定の通知も同じ手順で突き合わせる。1 回だけの通知は、日時を過ぎていれば先に OFF にする
     /// （届いた後は OS が保留から外すので、登録し直さない）
+    ///
+    /// 「完了するまで繰り返す」通知も同じ手順で突き合わせる。期待する通知は完了の記録を見て決まる（`NotificationScheduler.plan(for:now:)`）ので、
+    /// 日が進んで足りなくなった催促は補充し、完了済みの期間の催促や、トグルを ON にする前の毎日・曜日の通知は消す
     func reconcile(in context: ModelContext, now: Date = .now) async {
         let settings: [NotificationSetting]
         do {

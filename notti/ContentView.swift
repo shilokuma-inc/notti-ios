@@ -43,10 +43,16 @@ struct ContentView: View {
                     NotificationRow(
                         setting: setting,
                         isEnabled: isEnabledBinding(for: setting),
-                        isSilent: setting.isSilent(quietHours: quietHours)
-                    ) {
-                        editingSetting = setting
-                    }
+                        isSilent: setting.isSilent(quietHours: quietHours),
+                        onEdit: { editingSetting = setting },
+                        onSetCompleted: { isCompleted in
+                            if isCompleted {
+                                actions.complete(setting, in: modelContext)
+                            } else {
+                                actions.undoCompletion(setting, in: modelContext)
+                            }
+                        }
+                    )
                 }
                 .onDelete { offsets in
                     actions.delete(offsets.map { settings[$0] }, from: modelContext)
@@ -92,6 +98,10 @@ struct ContentView: View {
                     actions.disableExpiredOnce(settings, in: modelContext)
                     Task {
                         authorization = await authorizer.authorization()
+                    }
+                    // 「完了するまで繰り返す」通知の催促は先に登録した日数ぶんしか無いので、前面に戻るたびに補充する
+                    Task {
+                        await NotificationReconciler(scheduler: scheduler).reconcile(in: modelContext)
                     }
                 }
             }

@@ -15,6 +15,12 @@ struct NotificationSettingActions {
 
     let scheduler: NotificationScheduler
 
+    /// 最後に積んだ通知センターへの反映。反映は呼んだ順に 1 つずつ行う
+    ///
+    /// 反映の途中（`await` の間）に次の操作が来ると、登録と削除が入り混じって、後の操作の結果が前の操作に上書きされるため
+    /// （例: 完了の反映が終わる前に取り消すと、取り消した期間の催促が消える）
+    private static var lastSync: Task<Void, Never>?
+
     /// 通知の ON/OFF を切り替える。ON にした時刻を新しい起点日時にする（Q1「設定した時刻から N 時間ごと」）
     @discardableResult
     func setEnabled(_ isEnabled: Bool, for setting: NotificationSetting, now: Date = .now) -> Task<Void, Never> {
@@ -26,7 +32,7 @@ struct NotificationSettingActions {
                 setting.isEnabled = false
             }
         }
-        return Task {
+        return enqueue {
             await sync(setting, now: now)
         }
     }
@@ -63,7 +69,7 @@ struct NotificationSettingActions {
             context.insert(target)
         }
         save(context)
-        let task = Task {
+        let task = enqueue {
             await sync(target, now: now)
         }
         return (target, task)
@@ -85,6 +91,59 @@ struct NotificationSettingActions {
         return save(draft, to: setting, in: context, now: now)
     }
 
+    /// 「完了するまで繰り返す」通知の、`date`（省略したら `now`）を含む期間を完了にする
+    ///
+    /// 完了の記録を保存し、通知を登録し直す（その期間の残りの催促を消して、次の期間の催促を補充する）。
+    /// スヌーズで予約した通知と、通知センターに表示中のこの設定の通知も消す（完了したのにもう一度鳴らないように）。
+    /// 完了するまで繰り返さない通知や、すでに完了済みの期間なら何もしない
+    ///
+    /// - Parameter date: どの期間を完了にするか。通知のアクションからは通知が届いた日時を渡す（日付が変わってから押しても、届いた日の完了にする）
+    /// - Returns: 通知センターへの反映
+    @discardableResult
+    func complete(
+        _ setting: NotificationSetting,
+        in context: ModelContext,
+        periodContaining date: Date? = nil,
+        now: Date = .now
+    ) -> Task<Void, Never> {
+        let date = date ?? now
+        guard let period = setting.completionPeriod(containing: date, calendar: scheduler.calendar), !setting.isCompleted(period) else {
+            return Task {}
+        }
+        let record = CompletionRecord(periodStart: period.start, completedAt: now, setting: setting)
+        context.insert(record)
+        // 保存できなかったら完了にしない（催促を消したまま、完了の記録が残らない状態にしないため）
+        guard save(context) else {
+            context.delete(record)
+            return Task {}
+        }
+        return enqueue {
+            await scheduler.remove(id: setting.id)
+            await sync(setting, now: now)
+        }
+    }
+
+    /// `now` を含む期間の完了を取り消す。完了の記録を消し、その期間の残りの催促を登録し直す
+    ///
+    /// - Returns: 通知センターへの反映
+    @discardableResult
+    func undoCompletion(_ setting: NotificationSetting, in context: ModelContext, now: Date = .now) -> Task<Void, Never> {
+        guard let period = setting.completionPeriod(containing: now, calendar: scheduler.calendar) else {
+            return Task {}
+        }
+        let records = setting.completions.filter { period.contains($0.periodStart) }
+        guard !records.isEmpty else {
+            return Task {}
+        }
+        for record in records {
+            context.delete(record)
+        }
+        save(context)
+        return enqueue {
+            await sync(setting, now: now)
+        }
+    }
+
     /// 通知設定を削除し、登録済みの通知も止める
     @discardableResult
     func delete(_ settings: [NotificationSetting], from context: ModelContext) -> Task<Void, Never> {
@@ -93,7 +152,7 @@ struct NotificationSettingActions {
             context.delete(setting)
         }
         save(context)
-        return Task {
+        return enqueue {
             for id in ids {
                 await scheduler.remove(id: id)
             }
@@ -116,7 +175,7 @@ struct NotificationSettingActions {
         if count > NotificationScheduler.pendingLimit {
             Self.logger.warning("登録する通知が上限を超えています: \(count) 件")
         }
-        return Task {
+        return enqueue {
             for setting in settings {
                 await sync(setting, now: now)
             }
@@ -172,16 +231,31 @@ struct NotificationSettingActions {
         }
     }
 
+    /// 通知センターへの反映を、前に積んだ反映が終わってから行う
+    private func enqueue(_ operation: @escaping @MainActor () async -> Void) -> Task<Void, Never> {
+        let previous = Self.lastSync
+        let task = Task {
+            await previous?.value
+            await operation()
+        }
+        Self.lastSync = task
+        return task
+    }
+
     /// ON の、時刻指定で 1 回だけの通知
     private func isEnabledOnce(_ setting: NotificationSetting) -> Bool {
         setting.isEnabled && setting.kind == .timeOfDay && setting.repeatRule == .once
     }
 
-    private func save(_ context: ModelContext) {
+    /// - Returns: 保存できたかどうか
+    @discardableResult
+    private func save(_ context: ModelContext) -> Bool {
         do {
             try context.save()
+            return true
         } catch {
             Self.logger.error("通知設定を保存できません: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 }

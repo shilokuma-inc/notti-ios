@@ -12,6 +12,7 @@ import UserNotifications
 /// - 間隔（おやすみ時間なし）: `<id>`
 /// - 間隔（おやすみ時間あり）: `<id>-<hour>`（hour は 0〜23）
 /// - 時刻指定: 毎日 `<id>-daily` / 曜日 `<id>-weekday<1〜7>` / 1 回だけ `<id>-once`
+/// - 完了するまで繰り返す催促: `<id>-nag<yyyyMMddHHmm>`（鳴らす日時ごと。日付を指定した 1 回きり）
 /// - スヌーズ: `<id>-snooze`（通知のアクションから予約する。設定の登録し直しでは消さない）
 nonisolated struct NotificationScheduler: Sendable {
     /// 通知センターに登録しておける通知の上限。超えた分は OS に破棄される
@@ -19,7 +20,8 @@ nonisolated struct NotificationScheduler: Sendable {
 
     private let center: any NotificationCenterProtocol
     private let quietHours: @Sendable () -> QuietHours
-    private let calendar: Calendar
+    /// 鳴らす時刻・完了の期間の計算に使う暦（タイムゾーンもここから取る）
+    let calendar: Calendar
 
     /// - Parameters:
     ///   - quietHours: 登録時に参照するおやすみ時間。既定は保存済みの値
@@ -52,6 +54,26 @@ nonisolated struct NotificationScheduler: Sendable {
         NotificationTriggerPlan.make(schedule: schedule, now: now, calendar: calendar)
     }
 
+    /// 「完了するまで繰り返す」通知の催促のトリガーを決める
+    ///
+    /// - Parameters:
+    ///   - completedPeriodStarts: 完了の記録の期間の始まり。完了済みの期間には催促しない
+    ///   - now: これより後の日時だけ登録する
+    func plan(
+        schedule: TimeOfDaySchedule,
+        rule: UntilDoneRule,
+        completedPeriodStarts: [Date],
+        now: Date = .now
+    ) -> NotificationTriggerPlan {
+        NotificationTriggerPlan.make(
+            schedule: schedule,
+            rule: rule,
+            completedPeriodStarts: completedPeriodStarts,
+            now: now,
+            calendar: calendar
+        )
+    }
+
     /// `message` を `startDate` から `interval` ごとに繰り返し通知する。登録済みの同じ `id` の通知は置き換える
     ///
     /// - おやすみ時間が無ければ、登録した時刻から `interval` ごと（14:23 に登録して 1 時間なら 15:23, 16:23…）
@@ -77,11 +99,28 @@ nonisolated struct NotificationScheduler: Sendable {
         return plan
     }
 
+    /// 「完了するまで繰り返す」通知の催促を登録する。登録済みの同じ `id` の通知（毎日・曜日のトリガーも）は置き換える
+    ///
+    /// - Returns: 登録したトリガー
+    @discardableResult
+    func schedule(
+        id: UUID,
+        message: String,
+        schedule: TimeOfDaySchedule,
+        rule: UntilDoneRule,
+        completedPeriodStarts: [Date],
+        now: Date = .now
+    ) async throws -> NotificationTriggerPlan {
+        let plan = plan(schedule: schedule, rule: rule, completedPeriodStarts: completedPeriodStarts, now: now)
+        try await register(id: id, message: message, plan: plan)
+        return plan
+    }
+
     /// 登録済みの同じ `id` の通知を消してから、`plan` どおりに登録する。スヌーズで予約した通知は残す
     private func register(id: UUID, message: String, plan: NotificationTriggerPlan) async throws {
         await remove(id: id, keepingSnooze: true)
 
-        let content = Self.content(id: id, message: message)
+        let content = Self.content(id: id, message: message, categoryIdentifier: Self.categoryIdentifier(for: plan))
         switch plan {
         case let .repeatingInterval(timeInterval):
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: true)
@@ -98,6 +137,12 @@ nonisolated struct NotificationScheduler: Sendable {
                 let calendarTrigger = UNCalendarNotificationTrigger(dateMatching: trigger.dateComponents, repeats: trigger.repeats)
                 let identifier = Self.identifier(for: id, trigger: trigger)
                 try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: calendarTrigger))
+            }
+        case let .untilDone(dates):
+            for components in dates {
+                let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+                let identifier = Self.identifier(for: id, nagAt: components)
+                try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: trigger))
             }
         }
     }
@@ -172,6 +217,13 @@ nonisolated struct NotificationScheduler: Sendable {
         }
     }
 
+    /// 「完了するまで繰り返す」通知の催促の、鳴らす日時ごとの identifier（`<id>-nag<yyyyMMddHHmm>`）
+    static func identifier(for id: UUID, nagAt components: DateComponents) -> String {
+        let fields = [components.year, components.month, components.day, components.hour, components.minute].map { $0 ?? 0 }
+        let stamp = String(format: "%04d%02d%02d%02d%02d", fields[0], fields[1], fields[2], fields[3], fields[4])
+        return "\(identifier(for: id))-nag\(stamp)"
+    }
+
     /// スヌーズで予約する通知の identifier
     static func snoozeIdentifier(for id: UUID) -> String {
         "\(identifier(for: id))-snooze"
@@ -207,6 +259,20 @@ nonisolated struct NotificationScheduler: Sendable {
                 )
                 return (identifier(for: id, trigger: trigger), notification)
             })
+        case let .untilDone(dates):
+            return Dictionary(dates.map { components in
+                let notification = PendingNotification(
+                    body: message,
+                    hour: components.hour,
+                    minute: components.minute,
+                    year: components.year,
+                    month: components.month,
+                    day: components.day,
+                    repeats: false,
+                    categoryIdentifier: untilDoneCategoryIdentifier
+                )
+                return (identifier(for: id, nagAt: components), notification)
+            }) { first, _ in first }
         }
     }
 }
@@ -216,17 +282,35 @@ nonisolated struct NotificationScheduler: Sendable {
 nonisolated extension NotificationScheduler {
     /// 登録する通知に付けるカテゴリ。スヌーズのアクションを持つ
     static let categoryIdentifier = "notti.reminder"
+    /// 「完了するまで繰り返す」通知の催促に付けるカテゴリ。完了とスヌーズのアクションを持つ
+    static let untilDoneCategoryIdentifier = "notti.untilDone"
     /// スヌーズのアクション
     static let snoozeActionIdentifier = "notti.snooze"
+    /// 完了のアクション。アプリを開かずに、通知が届いた期間を完了にする
+    static let completeActionIdentifier = "notti.complete"
     /// スヌーズしてから、もう一度鳴らすまでの時間（10 分）
     static let snoozeInterval: TimeInterval = 600
     /// 通知の userInfo に入れる設定の ID のキー。スヌーズの identifier を作るのに使う
     static let settingIDKey = "settingID"
 
-    /// 通知のカテゴリ。アクションは「10 分後にもう一度」の 1 つ
+    /// 通知のカテゴリ。ふだんの通知のアクションは「10 分後にもう一度」の 1 つ。
+    /// 「完了するまで繰り返す」通知の催促は「完了」と「10 分後にもう一度」。「完了」は `.foreground` を付けず、アプリを開かずに保存する
     static var categories: Set<UNNotificationCategory> {
         let snooze = UNNotificationAction(identifier: snoozeActionIdentifier, title: "10 分後にもう一度")
-        return [UNNotificationCategory(identifier: categoryIdentifier, actions: [snooze], intentIdentifiers: [])]
+        let complete = UNNotificationAction(identifier: completeActionIdentifier, title: "完了")
+        return [
+            UNNotificationCategory(identifier: categoryIdentifier, actions: [snooze], intentIdentifiers: []),
+            UNNotificationCategory(identifier: untilDoneCategoryIdentifier, actions: [complete, snooze], intentIdentifiers: [])
+        ]
+    }
+
+    /// `plan` どおりに登録する通知に付けるカテゴリ
+    static func categoryIdentifier(for plan: NotificationTriggerPlan) -> String {
+        if case .untilDone = plan {
+            untilDoneCategoryIdentifier
+        } else {
+            categoryIdentifier
+        }
     }
 
     /// 通知のカテゴリを通知センターに登録する。アプリ起動時に呼ぶ
@@ -235,14 +319,21 @@ nonisolated extension NotificationScheduler {
     }
 
     /// `id` の通知を `interval` 後にもう一度鳴らす。スヌーズで予約済みの通知は置き換える
-    func snooze(id: UUID, message: String, after interval: TimeInterval = snoozeInterval) async throws {
+    ///
+    /// - Parameter categoryIdentifier: スヌーズした通知のカテゴリ。催促をスヌーズしたら、もう一度鳴らす通知からも完了できるようにする
+    func snooze(
+        id: UUID,
+        message: String,
+        categoryIdentifier: String = NotificationScheduler.categoryIdentifier,
+        after interval: TimeInterval = snoozeInterval
+    ) async throws {
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let content = Self.content(id: id, message: message)
+        let content = Self.content(id: id, message: message, categoryIdentifier: categoryIdentifier)
         try await center.add(UNNotificationRequest(identifier: Self.snoozeIdentifier(for: id), content: content, trigger: trigger))
     }
 
-    /// 通知の内容。スヌーズできるようカテゴリと設定の ID を付ける
-    fileprivate static func content(id: UUID, message: String) -> UNMutableNotificationContent {
+    /// 通知の内容。スヌーズ・完了できるようカテゴリと設定の ID を付ける
+    fileprivate static func content(id: UUID, message: String, categoryIdentifier: String) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.body = message
         content.sound = .default
@@ -281,6 +372,8 @@ nonisolated extension NotificationTriggerPlan {
             times.count
         case let .timeOfDay(triggers):
             triggers.count
+        case let .untilDone(dates):
+            dates.count
         }
     }
 }
