@@ -85,7 +85,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           # _archive.yml / README の Environment と揃える。ランナー側の更新で撮影結果が変わらないよう固定する
-          xcode-version: '26.3'
+          xcode-version: '26.6'
 
       - name: Checkout
         uses: actions/checkout@v7
