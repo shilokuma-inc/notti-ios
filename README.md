@@ -46,7 +46,6 @@ open notti.xcodeproj
 | Pull Request の作成時（opened / reopened / ready_for_review） | ✅ | | |
 | Fork からの Pull Request | ✅ | | |
 | 手動実行（workflow_dispatch） | | ✅ | ✅ |
-| `assets/**`（PR 用スクリーンショット置き場） | | | |
 
 - Upload は Archive → IPA Export を含むため、`develop` / `release/**` では Archive を別途実行しません
 - ドキュメントだけの変更（`**/*.md`、`docs/**`）では Build を実行しません。Upload（`develop` / `release/**` への push）と Archive（`main` への push）は、ドキュメントだけの変更でも実行します
@@ -57,7 +56,6 @@ open notti.xcodeproj
 
 | ワークフロー | トリガー | 内容 |
 |---|---|---|
-| Cleanup assets branch | PR のマージ | PR 本文が参照している `assets/issue-<番号>` ブランチを削除 |
 | Close goal Discussion | `epic-final` ラベルの PR が `develop` にマージされたとき | PR 本文の目印で指定されたゴール元の Discussion を解決済みで閉じる |
 | Verify/App Store metadata | `AppStore/**` / `Tools/**` などを変更した Pull Request | App Store のメタデータの欠損・文字数超過と、スクリーンショットの撮影設定を検査する（ビルドなし） |
 | Metadata/App Store | 手動実行のみ | `AppStore/metadata/*.json` を App Store Connect に反映する。mode は `dry-run`（既定・差分だけ）/ `upload` / `export`（現在値を JSON に書き出す） |
