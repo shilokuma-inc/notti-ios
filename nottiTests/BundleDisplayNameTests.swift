@@ -1,5 +1,5 @@
 //
-//  AppDisplayNameTests.swift
+//  BundleDisplayNameTests.swift
 //  nottiTests
 //
 
@@ -8,7 +8,7 @@ import Testing
 
 /// ホーム画面の表示名が、日本語では「のっち」・それ以外の言語では「Notti」になることを確かめる。
 /// 既定値は notti/Info.plist、言語ごとの値は notti/InfoPlist.xcstrings にある
-struct AppDisplayNameTests {
+struct BundleDisplayNameTests {
     /// ローカライズの無い言語で使われる既定の表示名
     @Test
     func defaultDisplayNameIsNotti() throws {
