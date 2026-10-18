@@ -1,6 +1,6 @@
-# notti
+# Notti（のっち）
 
-notti の iOS アプリ（SwiftUI）。
+Notti（のっち）の iOS アプリ（SwiftUI）。
 
 アプリのコンセプトを見直し中のため、[shilokuma-inc/template-app-ios](https://github.com/shilokuma-inc/template-app-ios) の初期状態（Hello World）にリセットしています。
 以前の「おせっかいアプリ」（タスクを完了するまで催促し続けるリマインダー）は別リポジトリで作り直します。
@@ -12,6 +12,20 @@ notti の iOS アプリ（SwiftUI）。
 - Swift 6（Swift 6 言語モード / Strict Concurrency）
 - SwiftUI / Swift Testing / XCTest（UI テスト）
 - SwiftLint 0.65.1（Build Tool Plugin）
+
+## アプリ名
+
+日本語では「のっち」、英字では「Notti」と書きます。ホーム画面・設定アプリ・通知に出る表示名は、アプリの言語が日本語なら「のっち」、それ以外なら「Notti」です。
+小文字の `notti` はリポジトリ名・Bundle ID・モジュール名・スキーム名などの識別子にだけ使い、これらは変えません。
+
+| 設定場所 | 内容 |
+|---|---|
+| [notti/Info.plist](notti/Info.plist) | 既定（日本語以外の言語）の表示名 `CFBundleDisplayName` = `Notti` |
+| [notti/InfoPlist.xcstrings](notti/InfoPlist.xcstrings) | 言語ごとの表示名（en: `Notti` / ja: `のっち`） |
+| [notti/AppDisplayName.swift](notti/AppDisplayName.swift) | アプリ内の文言に出すアプリ名（表示名をそのまま使う） |
+| [AppStore/metadata/](AppStore/metadata) | App Store の説明文・キーワードでのアプリ名の表記 |
+
+App Store 上のアプリ名（日本語「のっち」・英語「Notti」）は App Store Connect で付けます。
 
 ## Status
 
@@ -78,6 +92,7 @@ Bundle ID・証明書・プロビジョニングプロファイルは、Export �
 App Store Connect でのアプリ作成だけは API で行えないため、チーム `XU74X3434S` で Web 画面から作成します。
 
 Upload ワークフローはアップロードの前にアプリの有無を確認し（[.github/scripts/check-app-store-app.rb](.github/scripts/check-app-store-app.rb)）、`jp.shilokuma.notti` のアプリが無ければ「新規アプリ」画面に入力する値（名前・バンドル ID・SKU など）を Job Summary に表示して止まります。表示された値でアプリを作成してから、ワークフローを再実行してください。
+プライマリ言語は英語（米国）で名前は「Notti」、作成後に日本語のローカライズを足して名前を「のっち」にします（ローカライズの無い言語の App Store にはプライマリ言語の名前が出るため）。案内に出す名前は Archive したアプリの表示名（`notti/InfoPlist.xcstrings`）から読みます。
 
 アプリを作成するまでは、Upload（`develop` / `release/**` への push を含む）と Metadata/App Store・Screenshots/App Store（の反映）は失敗します。
 
@@ -92,22 +107,25 @@ Xcode が App Store Connect 上の最新ビルド番号を見て自動で増や�
 
 | ファイル | 内容 |
 |---|---|
-| [AppStore/languages.json](AppStore/languages.json) | App Store に載せる言語（いまは `ja` だけ） |
-| [AppStore/metadata/ja.json](AppStore/metadata/ja.json) | 説明文・キーワード・プロモーションテキスト（言語ごと） |
+| [AppStore/languages.json](AppStore/languages.json) | App Store に載せる言語（いまは `ja`・`en`） |
+| [AppStore/metadata/ja.json](AppStore/metadata/ja.json) / [en.json](AppStore/metadata/en.json) | 説明文・キーワード・プロモーションテキスト（言語ごと） |
 | [AppStore/metadata/shared.json](AppStore/metadata/shared.json) | サポート URL・マーケティング URL（言語によらない） |
 | [AppStore/screenshots.json](AppStore/screenshots.json) | 撮る画面と並び順、表示サイズ（iPhone 6.9 inch / iPad 13 inch）ごとの機種と寸法 |
 | [notti/Screenshot/ScreenshotDemo.swift](notti/Screenshot/ScreenshotDemo.swift) | 撮影モード。起動引数 `-screenshot-demo` が無い通常の起動では何も変えない |
 | [Tools/](Tools) | 検査・撮影・反映のスクリプト |
 
 > [!WARNING]
-> アプリのコンセプトが見直し中のため、`ja.json` / `shared.json` の値は検査を通すための**仮の値**です。App Store Connect に反映する前に書き換えてください。
+> アプリのコンセプトが見直し中のため、`ja.json` / `en.json` / `shared.json` の値は検査を通すための**仮の値**です（`en.json` は訳文も確かめていません）。App Store Connect に反映する前に書き換えてください。
 
 ```bash
 python3 Tools/upload_metadata.py --check                          # メタデータを手元で検査する
-Tools/capture_screenshots.sh APP_IPHONE_67                        # スクリーンショットを撮る（build/screenshots に出力）
+Tools/capture_screenshots.sh APP_IPHONE_67 ja                     # スクリーンショットを撮る（build/screenshots に出力）
 ```
 
 反映するときは、Metadata/App Store を `dry-run` で実行して差分を確かめてから `upload` で実行します。スクリーンショットは Screenshots/App Store を `upload` を外して実行し、artifact で確かめてから反映します。
+
+アプリ内の文言は日本語だけなので、英語のスクリーンショットにも日本語の画面が写ります。アプリを英語にするまでは、撮影も Screenshots/App Store も言語に `ja` を指定してください。
+App Store Connect のバージョンに英語（米国）のローカライズが無いあいだは、Metadata / Screenshots を既定の `missing_locales`（`fail`）で実行すると書き込む前に止まり、日本語も反映されません。英語（米国）を追加してから実行するか、言語に `ja` を指定するか、`missing_locales` を `create` / `skip` にします。
 
 ## 構成
 

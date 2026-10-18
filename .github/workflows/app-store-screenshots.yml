@@ -19,7 +19,7 @@ on:
         required: false
         default: ''
       languages:
-        description: '撮影する言語（カンマ区切り）。空なら languages.json の全言語（いまは ja だけ）'
+        description: '撮影する言語（カンマ区切り）。空なら languages.json の全言語（いまは ja・en。英語の画面はまだ無いので、当面は ja を指定する）'
         required: false
         default: ''
       app_version:

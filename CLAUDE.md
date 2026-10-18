@@ -30,6 +30,12 @@ shilokuma-inc/template-app-ios から作った SwiftUI アプリ。アプリの�
   いまの値は仮。App Store Connect にアプリを作るまで Upload / Metadata / Screenshots は失敗する。
 - 撮影モードは `notti/Screenshot/ScreenshotDemo.swift`（起動引数 `-screenshot-demo`）。画面を足すときは
   `ScreenshotDemo.Scene` と `AppStore/screenshots.json` の `scenes` を揃える（verify が突き合わせる）。
+- アプリ名の表記: 日本語では「のっち」、英字では「Notti」（大文字始まり）。小文字の `notti` はコード上の識別子
+  （モジュール名・`PRODUCT_NAME`・Bundle ID・スキーム名・通知のカテゴリ ID `notti.reminder` など・Logger の subsystem）
+  だけに使い、これらは変えない（通知の識別子を変えると配信済み・予約済みの通知と食い違う）。
+- ホーム画面の表示名（`CFBundleDisplayName`）は、既定（日本語以外）を `notti/Info.plist` に `Notti`、
+  言語ごとの値を `notti/InfoPlist.xcstrings`（en: `Notti` / ja: `のっち`）に書く。`knownRegions` に `ja` がある。
+  アプリ内の文言でアプリ名を出すときは `AppDisplayName.current`（表示名をそのまま返す）を使う。
 
 ## ブランチ運用
 

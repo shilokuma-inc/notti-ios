@@ -27,7 +27,7 @@ on:
           - export
         default: dry-run
       languages:
-        description: '対象の言語（カンマ区切り）。空なら languages.json の全言語（いまは ja だけ）'
+        description: '対象の言語（カンマ区切り）。空なら languages.json の全言語（いまは ja・en）'
         required: false
         default: ''
       app_version:
