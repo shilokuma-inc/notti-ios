@@ -5,8 +5,8 @@
     "appleLanguage: 撮影時にアプリへ渡す -AppleLanguages の値（Localizable.xcstrings の言語コード）",
     "appleLocale:   撮影時にアプリへ渡す -AppleLocale の値（日付や数値の書式）",
     "storeLocale:   App Store Connect のロケール（アプリの言語コードとは別物）",
-    "App Store Connect にアプリがまだ無いため、日本語だけで始めている（2026-10 時点）。",
-    "英語を足すときは AppStore/metadata/en.json を用意してから { language: en, appleLanguage: en, appleLocale: en_US, storeLocale: en-US } を加える。"
+    "日本語（ja）と英語（en → en-US）を載せる。言語を足すときは AppStore/metadata/<language>.json を用意してから、ここに 1 件加える。",
+    "アプリ内の文言は日本語の直書きで、英語の画面はまだ無い。英語のスクリーンショットにも日本語の画面が写るので、アプリを英語にするまでは Screenshots/App Store を languages=ja で実行する。"
   ],
   "languages": [
     {
@@ -14,6 +14,12 @@
       "appleLanguage": "ja",
       "appleLocale": "ja_JP",
       "storeLocale": "ja"
+    },
+    {
+      "language": "en",
+      "appleLanguage": "en",
+      "appleLocale": "en_US",
+      "storeLocale": "en-US"
     }
   ]
 }
