@@ -14,7 +14,7 @@ struct NotificationDeniedNotice: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("通知が許可されていません", systemImage: "bell.slash.fill")
                 .font(.headline)
-            Text("設定アプリで notti の通知を許可してください。許可するまで通知は届きません。")
+            Text("設定アプリで「\(AppDisplayName.current)」の通知を許可してください。許可するまで通知は届きません。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Button("設定アプリを開く") {
