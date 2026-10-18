@@ -9,9 +9,12 @@
 # Bundle ID の登録は Export 時に xcodebuild（-allowProvisioningUpdates）が自動で行う。
 #
 # 使い方（環境変数で渡す）:
-#   BUNDLE_ID=jp.shilokuma.MyApp APP_NAME=MyApp \
+#   BUNDLE_ID=jp.shilokuma.MyApp APP_NAME=マイアプリ APP_NAME_EN=MyApp \
 #   API_KEY_PATH=AuthKey_XXXXXXXXXX.p8 APPLE_API_KEY_ID=XXXXXXXXXX APPLE_API_ISSUER_ID=xxxxxxxx-... \
 #   ruby .github/scripts/check-app-store-app.rb
+#
+# APP_NAME はプライマリ言語（日本語）の名前。APP_NAME_EN は英語（米国）のローカライズの名前で、
+# 省略するか APP_NAME と同じなら英語のローカライズの案内を出さない。
 #
 # GITHUB_STEP_SUMMARY が設定されていれば（GitHub Actions 上）、結果を Job Summary にも書き出す。
 #
@@ -70,6 +73,7 @@ end
 
 bundle_id = env!('BUNDLE_ID')
 app_name = env!('APP_NAME')
+app_name_en = ENV.fetch('APP_NAME_EN', '')
 token = make_token(
   key_path: env!('API_KEY_PATH'),
   key_id: env!('APPLE_API_KEY_ID'),
@@ -102,6 +106,16 @@ guide = <<~MARKDOWN
   - SKU はユーザーには見えない社内用の ID で、後から変更できません。迷わないよう Bundle ID と同じ値にしています
   - バンドル ID の候補に出てこない場合は、Developer Portal への登録がまだです。このワークフローの Export が一度成功すると登録されます
 MARKDOWN
+
+unless app_name_en.empty? || app_name_en == app_name
+  guide += <<~MARKDOWN
+
+    作成したら、英語の App Store に出す名前を英語（米国）のローカライズで付けます。
+
+    1. アプリの「App 情報」を開き、右上の言語のメニューから「英語（米国）」を追加する
+    2. 英語（米国）の「名前」に #{app_name_en} を入力して保存する（使用済みで使えない場合は、別の名前を人が決めます）
+  MARKDOWN
+end
 
 puts guide
 write_summary(guide)
