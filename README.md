@@ -92,7 +92,7 @@ Xcode が App Store Connect 上の最新ビルド番号を見て自動で増や�
 
 | ファイル | 内容 |
 |---|---|
-| [AppStore/languages.json](AppStore/languages.json) | App Store に載せる言語（いまは `ja` だけ） |
+| [AppStore/languages.json](AppStore/languages.json) | App Store に載せる言語（いまは `ja`・`en`） |
 | [AppStore/metadata/ja.json](AppStore/metadata/ja.json) | 説明文・キーワード・プロモーションテキスト（言語ごと） |
 | [AppStore/metadata/shared.json](AppStore/metadata/shared.json) | サポート URL・マーケティング URL（言語によらない） |
 | [AppStore/screenshots.json](AppStore/screenshots.json) | 撮る画面と並び順、表示サイズ（iPhone 6.9 inch / iPad 13 inch）ごとの機種と寸法 |
