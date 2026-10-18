@@ -107,21 +107,24 @@ Xcode が App Store Connect 上の最新ビルド番号を見て自動で増や�
 | ファイル | 内容 |
 |---|---|
 | [AppStore/languages.json](AppStore/languages.json) | App Store に載せる言語（いまは `ja`・`en`） |
-| [AppStore/metadata/ja.json](AppStore/metadata/ja.json) | 説明文・キーワード・プロモーションテキスト（言語ごと） |
+| [AppStore/metadata/ja.json](AppStore/metadata/ja.json) / [en.json](AppStore/metadata/en.json) | 説明文・キーワード・プロモーションテキスト（言語ごと） |
 | [AppStore/metadata/shared.json](AppStore/metadata/shared.json) | サポート URL・マーケティング URL（言語によらない） |
 | [AppStore/screenshots.json](AppStore/screenshots.json) | 撮る画面と並び順、表示サイズ（iPhone 6.9 inch / iPad 13 inch）ごとの機種と寸法 |
 | [notti/Screenshot/ScreenshotDemo.swift](notti/Screenshot/ScreenshotDemo.swift) | 撮影モード。起動引数 `-screenshot-demo` が無い通常の起動では何も変えない |
 | [Tools/](Tools) | 検査・撮影・反映のスクリプト |
 
 > [!WARNING]
-> アプリのコンセプトが見直し中のため、`ja.json` / `shared.json` の値は検査を通すための**仮の値**です。App Store Connect に反映する前に書き換えてください。
+> アプリのコンセプトが見直し中のため、`ja.json` / `en.json` / `shared.json` の値は検査を通すための**仮の値**です（`en.json` は訳文も確かめていません）。App Store Connect に反映する前に書き換えてください。
 
 ```bash
 python3 Tools/upload_metadata.py --check                          # メタデータを手元で検査する
-Tools/capture_screenshots.sh APP_IPHONE_67                        # スクリーンショットを撮る（build/screenshots に出力）
+Tools/capture_screenshots.sh APP_IPHONE_67 ja                     # スクリーンショットを撮る（build/screenshots に出力）
 ```
 
 反映するときは、Metadata/App Store を `dry-run` で実行して差分を確かめてから `upload` で実行します。スクリーンショットは Screenshots/App Store を `upload` を外して実行し、artifact で確かめてから反映します。
+
+アプリ内の文言は日本語だけなので、英語のスクリーンショットにも日本語の画面が写ります。アプリを英語にするまでは、撮影も Screenshots/App Store も言語に `ja` を指定してください。
+App Store Connect のバージョンに英語（米国）のローカライズが無いあいだは、Metadata / Screenshots を既定の `missing_locales`（`fail`）で実行すると書き込む前に止まり、日本語も反映されません。英語（米国）を追加してから実行するか、言語に `ja` を指定するか、`missing_locales` を `create` / `skip` にします。
 
 ## 構成
 
