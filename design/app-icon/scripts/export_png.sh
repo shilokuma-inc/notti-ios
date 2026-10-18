@@ -1,9 +1,9 @@
 #!/bin/bash
-# アイコン候補の SVG から、プレビュー用の PNG を書き出す。
+# 採用案の SVG から、プレビュー用の PNG を書き出す。
 #
 #   design/app-icon/scripts/export_png.sh
 #
-# SVG（`candidates/NN.svg`）が正本で、PNG はプレビュー用。macOS の QuickLook
+# SVG（`app-icon.svg`）が正本で、PNG はプレビュー用。macOS の QuickLook
 # （qlmanage）で描き直す。qlmanage は出力先のディレクトリが無いと何も書かずに
 # 終わるので、先に作る。出力名は `<元の名前>.svg.png` になるため、`.svg` を
 # 落として `<名前>.png` に直す。
@@ -14,9 +14,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$(mktemp -d)"
 trap 'rm -rf "${OUT}"' EXIT
 
-# 1 案ごとのプレビューはアイコンと同じ 1024 角、一覧は全体が入る大きさにする
-CANDIDATE_SIZE=1024
-OVERVIEW_SIZE=1608
+# アイコンと同じ 1024 角で書き出す
+APP_ICON_SIZE=1024
 
 export_svg() {
   local source="$1"
@@ -35,9 +34,6 @@ export_svg() {
   mv "${produced}" "${destination}"
 }
 
-for source in "${ROOT}"/candidates/*.svg; do
-  export_svg "${source}" "${source%.svg}.png" "${CANDIDATE_SIZE}"
-done
-export_svg "${ROOT}/overview.svg" "${ROOT}/overview.png" "${OVERVIEW_SIZE}"
+export_svg "${ROOT}/app-icon.svg" "${ROOT}/app-icon.png" "${APP_ICON_SIZE}"
 
 echo "プレビューの PNG を書き出しました"
