@@ -92,6 +92,7 @@ Bundle ID・証明書・プロビジョニングプロファイルは、Export �
 App Store Connect でのアプリ作成だけは API で行えないため、チーム `XU74X3434S` で Web 画面から作成します。
 
 Upload ワークフローはアップロードの前にアプリの有無を確認し（[.github/scripts/check-app-store-app.rb](.github/scripts/check-app-store-app.rb)）、`jp.shilokuma.notti` のアプリが無ければ「新規アプリ」画面に入力する値（名前・バンドル ID・SKU など）を Job Summary に表示して止まります。表示された値でアプリを作成してから、ワークフローを再実行してください。
+プライマリ言語は英語（米国）で名前は「Notti」、作成後に日本語のローカライズを足して名前を「のっち」にします（ローカライズの無い言語の App Store にはプライマリ言語の名前が出るため）。案内に出す名前は Archive したアプリの表示名（`notti/InfoPlist.xcstrings`）から読みます。
 
 アプリを作成するまでは、Upload（`develop` / `release/**` への push を含む）と Metadata/App Store・Screenshots/App Store（の反映）は失敗します。
 
