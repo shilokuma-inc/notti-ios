@@ -9,12 +9,14 @@
 # Bundle ID の登録は Export 時に xcodebuild（-allowProvisioningUpdates）が自動で行う。
 #
 # 使い方（環境変数で渡す）:
-#   BUNDLE_ID=jp.shilokuma.MyApp APP_NAME=マイアプリ APP_NAME_EN=MyApp \
+#   BUNDLE_ID=jp.shilokuma.MyApp APP_NAME=MyApp PRIMARY_LANGUAGE='英語（米国）' \
+#   LOCALIZED_LANGUAGE=日本語 LOCALIZED_APP_NAME=マイアプリ \
 #   API_KEY_PATH=AuthKey_XXXXXXXXXX.p8 APPLE_API_KEY_ID=XXXXXXXXXX APPLE_API_ISSUER_ID=xxxxxxxx-... \
 #   ruby .github/scripts/check-app-store-app.rb
 #
-# APP_NAME はプライマリ言語（日本語）の名前。APP_NAME_EN は英語（米国）のローカライズの名前で、
-# 省略するか APP_NAME と同じなら英語のローカライズの案内を出さない。
+# APP_NAME はプライマリ言語の名前。PRIMARY_LANGUAGE は省略すると日本語。
+# LOCALIZED_LANGUAGE / LOCALIZED_APP_NAME は作成後に足すローカライズの言語と名前で、
+# どちらかを省略するか LOCALIZED_APP_NAME が APP_NAME と同じなら、ローカライズの案内を出さない。
 #
 # GITHUB_STEP_SUMMARY が設定されていれば（GitHub Actions 上）、結果を Job Summary にも書き出す。
 #
@@ -73,7 +75,10 @@ end
 
 bundle_id = env!('BUNDLE_ID')
 app_name = env!('APP_NAME')
-app_name_en = ENV.fetch('APP_NAME_EN', '')
+primary_language = ENV.fetch('PRIMARY_LANGUAGE', '')
+primary_language = '日本語' if primary_language.empty?
+localized_language = ENV.fetch('LOCALIZED_LANGUAGE', '')
+localized_app_name = ENV.fetch('LOCALIZED_APP_NAME', '')
 token = make_token(
   key_path: env!('API_KEY_PATH'),
   key_id: env!('APPLE_API_KEY_ID'),
@@ -98,7 +103,7 @@ guide = <<~MARKDOWN
   | --- | --- |
   | プラットフォーム | iOS |
   | 名前 | #{app_name}（App Store 全体で使用済みの名前は使えません。その場合は別の名前にします） |
-  | プライマリ言語 | 日本語 |
+  | プライマリ言語 | #{primary_language} |
   | バンドル ID | #{bundle_id} |
   | SKU | #{bundle_id} |
   | ユーザアクセス | フルアクセス |
@@ -107,13 +112,14 @@ guide = <<~MARKDOWN
   - バンドル ID の候補に出てこない場合は、Developer Portal への登録がまだです。このワークフローの Export が一度成功すると登録されます
 MARKDOWN
 
-unless app_name_en.empty? || app_name_en == app_name
+unless localized_language.empty? || localized_app_name.empty? || localized_app_name == app_name
+  # ローカライズの無い言語の App Store にはプライマリ言語の名前が出る。ここで足す言語だけ別の名前にする
   guide += <<~MARKDOWN
 
-    作成したら、英語の App Store に出す名前を英語（米国）のローカライズで付けます。
+    作成したら、#{localized_language}の App Store に出す名前をローカライズで付けます（再実行の前でも後でもかまいません）。
 
-    1. アプリの「App 情報」を開き、右上の言語のメニューから「英語（米国）」を追加する
-    2. 英語（米国）の「名前」に #{app_name_en} を入力して保存する（使用済みで使えない場合は、別の名前を人が決めます）
+    1. アプリの「App 情報」を開き、右上の言語のメニューから「#{localized_language}」を追加する
+    2. #{localized_language}の「名前」に #{localized_app_name} を入力して保存する（使用済みで使えない場合は、別の名前を人が決めます）
   MARKDOWN
 end
 
