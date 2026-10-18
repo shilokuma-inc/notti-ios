@@ -1,6 +1,6 @@
-# notti
+# Notti（のっち）
 
-notti の iOS アプリ（SwiftUI）。
+Notti（のっち）の iOS アプリ（SwiftUI）。
 
 アプリのコンセプトを見直し中のため、[shilokuma-inc/template-app-ios](https://github.com/shilokuma-inc/template-app-ios) の初期状態（Hello World）にリセットしています。
 以前の「おせっかいアプリ」（タスクを完了するまで催促し続けるリマインダー）は別リポジトリで作り直します。
@@ -12,6 +12,20 @@ notti の iOS アプリ（SwiftUI）。
 - Swift 6（Swift 6 言語モード / Strict Concurrency）
 - SwiftUI / Swift Testing / XCTest（UI テスト）
 - SwiftLint 0.65.1（Build Tool Plugin）
+
+## アプリ名
+
+日本語では「のっち」、英字では「Notti」と書きます。ホーム画面・設定アプリ・通知に出る表示名は、アプリの言語が日本語なら「のっち」、それ以外なら「Notti」です。
+小文字の `notti` はリポジトリ名・Bundle ID・モジュール名・スキーム名などの識別子にだけ使い、これらは変えません。
+
+| 設定場所 | 内容 |
+|---|---|
+| [notti/Info.plist](notti/Info.plist) | 既定（日本語以外の言語）の表示名 `CFBundleDisplayName` = `Notti` |
+| [notti/InfoPlist.xcstrings](notti/InfoPlist.xcstrings) | 言語ごとの表示名（en: `Notti` / ja: `のっち`） |
+| [notti/AppDisplayName.swift](notti/AppDisplayName.swift) | アプリ内の文言に出すアプリ名（表示名をそのまま使う） |
+| [AppStore/metadata/](AppStore/metadata) | App Store の説明文・キーワードでのアプリ名の表記 |
+
+App Store 上のアプリ名（日本語「のっち」・英語「Notti」）は App Store Connect で付けます。
 
 ## Status
 
