@@ -236,29 +236,33 @@ def overview_svg(columns: int = 4, cell: int = 256, gap: int = 24, label: int = 
     rows = (len(CANDIDATES) + columns - 1) // columns
     width = columns * cell + (columns + 1) * gap
     height = rows * (cell + label) + (rows + 1) * gap
-    parts = [f'<rect width="{width}" height="{height}" fill="{BG_WHITE}"/>']
+    # qlmanage は正方形のサムネイルを作るため、余白が付かないよう正方形にする
+    side = max(width, height)
+    offset_x = (side - width) / 2
+    offset_y = (side - height) / 2
+    parts = [f'<rect width="{side}" height="{side}" fill="{BG_WHITE}"/>']
     for index, candidate in enumerate(CANDIDATES):
         column = index % columns
         row = index // columns
         x = gap + column * (cell + gap)
         y = gap + row * (cell + label + gap)
         parts.append(
-            f'<g transform="translate({x} {y}) scale({scale})">'
+            f'<g transform="translate({x + offset_x} {y + offset_y}) scale({scale})">'
             f'<rect width="{SIZE}" height="{SIZE}" fill="{candidate["bg"]}"/>'
             f'{"".join(candidate["elements"])}</g>'
         )
         parts.append(
-            f'<rect x="{x}" y="{y}" width="{cell}" height="{cell}" fill="none" '
-            f'stroke="{GRAY_LIGHT}" stroke-width="2"/>'
+            f'<rect x="{x + offset_x}" y="{y + offset_y}" width="{cell}" height="{cell}" '
+            f'fill="none" stroke="{GRAY_LIGHT}" stroke-width="2"/>'
         )
         parts.append(
-            f'<text x="{x + cell / 2}" y="{y + cell + 34}" text-anchor="middle" '
-            f'font-family="Helvetica, Arial, sans-serif" font-size="34" fill="{INK}">'
-            f'{index + 1:02d}</text>'
+            f'<text x="{x + offset_x + cell / 2}" y="{y + offset_y + cell + 34}" '
+            f'text-anchor="middle" font-family="Helvetica, Arial, sans-serif" '
+            f'font-size="34" fill="{INK}">{index + 1:02d}</text>'
         )
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
-        f'viewBox="0 0 {width} {height}">\n  ' + "\n  ".join(parts) + "\n</svg>\n"
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{side}" height="{side}" '
+        f'viewBox="0 0 {side} {side}">\n  ' + "\n  ".join(parts) + "\n</svg>\n"
     )
 
 
