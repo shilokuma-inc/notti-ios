@@ -5,11 +5,11 @@
     "書き換えるときは Metadata/App Store の dry-run で差分を確かめてから upload する。",
     "promotionalText は省略できる（省略すると App Store Connect 側の値をそのまま残す）。"
   ],
-  "description": "notti は、忘れたくないことをそっと知らせるリマインダーアプリです。",
+  "description": "のっちは、忘れたくないことをそっと知らせるリマインダーアプリです。",
   "keywords": [
     "リマインダー",
     "通知",
     "メモ",
-    "notti"
+    "Notti"
   ]
 }
