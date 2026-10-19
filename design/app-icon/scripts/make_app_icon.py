@@ -3,11 +3,17 @@
 
     python3 design/app-icon/scripts/make_app_icon.py
 
-`design/app-icon/app-icon.svg`（元データ・正本）を書き出す。プレビューの PNG は
-`design/app-icon/scripts/export_png.sh` で作る。
+次の 3 つを書き出す:
+
+- `design/app-icon/app-icon.svg`               採用案の正本（アプリの 1024 PNG 用）
+- `design/app-icon/icon-layers/background.svg` Icon Composer の背景レイヤー
+- `design/app-icon/icon-layers/foreground.svg` Icon Composer の前景レイヤー
+
+プレビューの PNG は `design/app-icon/scripts/export_png.sh` で作る。
+`.icon`（Icon Composer）の作り方は `design/app-icon/README.md` を参照。
 
 候補 20 案のうち案 16「ベル（塗り）＋未読バッジ・白背景」を採用した
-（Discussion #160 の ask への回答）。画像生成 AI は使わず、幾何学的な図形だけで
+（PR #162 の ask への回答）。画像生成 AI は使わず、幾何学的な図形だけで
 組んでいる（モノトーン）。
 """
 
@@ -51,21 +57,40 @@ def badge(fill: str, ring: str) -> str:
     )
 
 
-def app_icon_svg() -> str:
+def motif() -> str:
+    """モチーフ（ベル＋未読バッジ）を返す。背景は含まない。"""
+    return f"{bell(fill=INK)}{badge(fill=INK, ring=BG_WHITE)}"
+
+
+def svg(body: str, background: str | None) -> str:
+    """`body` を載せた SVG を返す。`background` が None なら背景を描かない。"""
+    lines = []
+    if background:
+        lines.append(f'  <rect width="{SIZE}" height="{SIZE}" fill="{background}"/>')
+    if body:
+        lines.append(f"  {body}")
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{SIZE}" height="{SIZE}" '
-        f'viewBox="0 0 {SIZE} {SIZE}">\n'
-        f'  <rect width="{SIZE}" height="{SIZE}" fill="{BG_WHITE}"/>\n'
-        f"  {bell(fill=INK)}{badge(fill=INK, ring=BG_WHITE)}\n"
-        "</svg>\n"
+        f'viewBox="0 0 {SIZE} {SIZE}">\n' + "\n".join(lines) + "\n</svg>\n"
     )
+
+
+def outputs() -> dict[str, str]:
+    """書き出すファイル（`design/app-icon/` からの相対パス）と中身を返す。"""
+    return {
+        "app-icon.svg": svg(motif(), BG_WHITE),
+        "icon-layers/background.svg": svg("", BG_WHITE),
+        "icon-layers/foreground.svg": svg(motif(), None),
+    }
 
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    destination = root / "app-icon.svg"
-    destination.write_text(app_icon_svg(), encoding="utf-8")
-    print(f"{destination} を書き出しました")
+    for relative, content in outputs().items():
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(content, encoding="utf-8")
+        print(f"{destination} を書き出しました")
 
 
 if __name__ == "__main__":
