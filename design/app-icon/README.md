@@ -15,6 +15,7 @@ design/app-icon/
 ├── icon-layers/               Icon Composer（`.icon`）用のレイヤー素材
 │   ├── background.svg         背景（白の全面塗り）
 │   └── foreground.svg         モチーフ（ベル＋未読バッジ）
+│                             （`make_app_icon.py` の出力。`notti/AppIcon.icon/Assets/` へコピーする）
 └── scripts/
     ├── make_app_icon.py       `app-icon.svg` とレイヤー素材を組み立てる
     └── export_png.sh          SVG からプレビューの PNG を書き出す
@@ -44,33 +45,63 @@ design/app-icon/
 
 - **iOS 17〜25 向け**: `app-icon.svg` から書き出した 1024 の PNG を `notti/Assets.xcassets/AppIcon.appiconset/AppIcon.png` に置く（`Tools/remove_alpha.swift` で透過を落とす）
 - **`AccentColor`**: `notti/Assets.xcassets/AccentColor.colorset` にアイコンの基調色を入れる（ライト `#101010` / ダーク `#FFFFFF`）
-- **iOS 26（Liquid Glass）向け**: Icon Composer で `.icon` を作る（下記）
+- **iOS 26（Liquid Glass）向け**: Icon Composer の `.icon` を `notti/AppIcon.icon` としてリポジトリに含めている（下記）
 
 ## `.icon`（Icon Composer）の作り方
 
-`.icon` は Icon Composer のドキュメント（`com.apple.package`）で、コマンドライン（ループ）では
-作れないため、レイヤー素材だけを用意している。次の手順で作る（Icon Composer の版によって
-画面の名前は変わりうるので、迷ったら素材と目的から読み替える）。
+`.icon` は Icon Composer のドキュメント（`com.apple.package`）で、`notti/AppIcon.icon` として
+リポジトリに含めている。中身は `icon.json` と `Assets/`（レイヤー画像）だけなので、
+Icon Composer の GUI を使わずコマンドラインでも作り直せる。
 
-1. `/Applications/Xcode-26.6.app/Contents/Applications/Icon Composer.app` を開く
-2. `icon-layers/background.svg` を背景レイヤー、`icon-layers/foreground.svg` を前景レイヤーとして読み込む（Icon Composer は SVG を読める。`CoreSVG` を同梱している）
-3. Liquid Glass の見え方を確かめる（既定の外観に加えて、ダーク・ティンテッド・クリアでの見え方も切り替えて確かめる）
-4. `.icon` を `notti/AppIcon.icon` として保存する（`.xcodeproj` はフォルダ同期グループなので、ファイルを置けばターゲットに入る）
-5. ターゲットの App Icon の設定をどうするかを決める。いまは `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`（`notti.xcodeproj/project.pbxproj`）でアセットカタログの `AppIcon` を使っている。`.icon` に切り替えるならこの設定を変える（pbxproj に直接書かず `Configs/Project.xcconfig` に集約できるかもあわせて決める）
+- `groups` は**先頭が最前面**の順。逆にすると背景レイヤーがモチーフを覆って真っ白になる
+- レイヤー画像は SVG のままでよい（PNG 化は不要。Icon Composer は `CoreSVG` を同梱している）
+- `fill` は背景レイヤーの下に隠れて見えないため、背景の色は背景レイヤーの SVG で決める
+
+作り直すときは、`make_app_icon.py` で作ったレイヤー素材を `Assets/` へコピーする:
+
+```bash
+mkdir -p notti/AppIcon.icon/Assets
+cp design/app-icon/icon-layers/foreground.svg design/app-icon/icon-layers/background.svg notti/AppIcon.icon/Assets/
+```
+
+`notti/AppIcon.icon/icon.json` はリポジトリにあるものをそのまま使う（`groups` の順番は変えない）。
+
+GUI なしで見た目を確かめるには `ictool` の `--export-image` を使う（真っ白ならグループ順のミス）:
+
+```bash
+"/Applications/Xcode-26.6.app/Contents/Applications/Icon Composer.app/Contents/Executables/ictool" \
+  notti/AppIcon.icon --export-image --output-file /tmp/appicon-check.png \
+  --platform iOS --rendition Default --width 1024 --height 1024 --scale 1
+```
+
+`/tmp/appicon-check.png` に白地・黒のベル・未読バッジ（右上）が出ること
+（画像を目視できないときの目安: ベルが出ていれば 270KB 前後、真っ白なら 60KB 前後）。
+
+ターゲットの App Icon の設定は `ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon`
+（`notti.xcodeproj/project.pbxproj`）のままでよい。アセットカタログの `AppIcon`
+（iOS 17〜25 用の 1024 PNG）と `AppIcon.icon` が両方あっても actool は警告なく処理し、
+`.icon` を優先する（レガシーサイズも `.icon` から生成される。2026-10-19 にシミュレータの
+ホーム画面で確認）。`AppIcon.appiconset` は消さない。
 
 ## 作り方（書き出し手順）
 
+座標・色の正本は `make_app_icon.py`（スクリプト内の定数）。SVG はその出力なので、
+SVG を手で直さずスクリプトを編集して組み立て直す:
+
 ```bash
-# app-icon.svg とレイヤー素材を組み立て直す（座標や色を変えたとき）
+# app-icon.svg とレイヤー素材（icon-layers/）を組み立て直す
 python3 design/app-icon/scripts/make_app_icon.py
+
+# レイヤー素材を .icon へコピーし直す
+mkdir -p notti/AppIcon.icon/Assets
+cp design/app-icon/icon-layers/foreground.svg design/app-icon/icon-layers/background.svg notti/AppIcon.icon/Assets/
 
 # SVG からプレビューの PNG を書き出す
 design/app-icon/scripts/export_png.sh
 
-# SVG と PNG が乖離していないことを確かめる（何も出なければ一致）
-design/app-icon/scripts/export_png.sh && git diff --exit-code -- design/app-icon
+# SVG・PNG・.icon のレイヤーが乖離していないことを確かめる（何も出なければ一致）
+git diff --exit-code -- design/app-icon notti/AppIcon.icon
 ```
 
 `export_png.sh` は macOS の QuickLook（`qlmanage`）で SVG を描き直す。
 `qlmanage` は出力先のディレクトリが無いと何も書かずに終わるので、スクリプト側で先に作っている。
-**SVG（`app-icon.svg` と `icon-layers/`）を変えたら `make_app_icon.py` と `export_png.sh` を必ず流す**（PNG は正本ではないため、片方だけを直すと乖離する）。
