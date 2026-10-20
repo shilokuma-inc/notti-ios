@@ -23,17 +23,21 @@ extension NotificationSetting {
         return completionCycle == nil ? label : "\(label)・完了まで \(nagInterval.label)"
     }
 
-    /// 完了するまで繰り返す通知の、今の期間（今日・今週）を完了済みか。完了するまで繰り返さない通知は nil
+    /// 完了するまで繰り返す通知の、今の期間（今日・今週・今月）を完了済みか。完了するまで繰り返さない通知は nil
     func isCurrentPeriodCompleted(now: Date = .now, calendar: Calendar = .current) -> Bool? {
         completionPeriod(containing: now, calendar: calendar).map(isCompleted)
     }
 
-    /// 一覧に出す、今の期間の完了の状態（例: 「今日は完了済み」「今週はまだ完了していません」）。完了するまで繰り返さない通知は nil
+    /// 一覧に出す、今の期間の完了の状態（例: 「今日は完了済み」「今週はまだ完了していません」「今月は完了済み」）。完了するまで繰り返さない通知は nil
     func completionStatusLabel(now: Date = .now, calendar: Calendar = .current) -> String? {
         guard let cycle = completionCycle, let isCompleted = isCurrentPeriodCompleted(now: now, calendar: calendar) else {
             return nil
         }
-        let period = cycle == .daily ? "今日" : "今週"
+        let period = switch cycle {
+        case .daily: "今日"
+        case .weekly: "今週"
+        case .monthly: "今月"
+        }
         return isCompleted ? "\(period)は完了済み" : "\(period)はまだ完了していません"
     }
 

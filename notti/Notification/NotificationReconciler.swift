@@ -27,7 +27,7 @@ struct NotificationReconciler {
     /// （届いた後は OS が保留から外すので、登録し直さない）
     ///
     /// 「完了するまで繰り返す」通知も同じ手順で突き合わせる。期待する通知は完了の記録を見て決まる（`NotificationScheduler.plan(for:now:)`）ので、
-    /// 日が進んで足りなくなった催促は補充し、完了済みの期間の催促や、トグルを ON にする前の毎日・曜日の通知は消す
+    /// 日が進んで足りなくなった催促は補充し、完了済みの期間の催促や、トグルを ON にする前の毎日・曜日・毎月の通知は消す
     func reconcile(in context: ModelContext, now: Date = .now) async {
         let settings: [NotificationSetting]
         do {
