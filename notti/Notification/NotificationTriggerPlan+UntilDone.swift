@@ -45,7 +45,8 @@ nonisolated extension NotificationTriggerPlan {
     /// - 毎月なら、その月の催促を始める日時（`monthlyNagStart(inMonthOf:schedule:calendar:)`）以降。
     ///   選んだ日が無い月（31 日を選んで 30 日の月など）は催促しない
     ///
-    /// 毎月なら、これに今後 `months` か月の各月の最初の催促（`monthlyFirstNagDates`）を足す。3 日ぶんに入っている日時は重ねない
+    /// 毎月なら、これに今後 `months` か月の各月の最初の催促（`monthlyFirstNagDates`）を足す。3 日ぶんに入っている日時は重ねない。
+    /// 合わせて上限を超えるときは、3 日ぶんの後ろを削って最初の催促を残す
     ///
     /// 0 時を過ぎたら催促しない（日の区切りが 0 時より後でも、深夜には鳴らさない）。
     /// 0 時〜日の区切りの間の日時は前の日の期間に入るので、前の日を完了していればその時間は鳴らない
@@ -86,7 +87,11 @@ nonisolated extension NotificationTriggerPlan {
             calendar: calendar,
             months: months
         )
-        return (dates + firsts.filter { !known.contains($0) }).sorted()
+        let extra = firsts.filter { !known.contains($0) }
+        // `make` が上限（`NotificationScheduler.pendingLimit`）で切っても先の月の最初の催促が落ちないよう、その分の枠を先に取る
+        // （5 日 9:00 から 30 分ごとなら 3 日ぶんだけで 90 件になる）
+        let limit = max(NotificationScheduler.pendingLimit - extra.count, 0)
+        return (dates.prefix(limit) + extra).sorted()
     }
 
     /// 催促を始める曜日・日付を選んでいるか（毎週なら曜日、毎月なら日付か月末。毎日は常に true）
