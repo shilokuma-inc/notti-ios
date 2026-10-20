@@ -14,6 +14,7 @@ struct ContentView: View {
     @Environment(\.notificationScheduler) private var scheduler
     @Environment(\.notificationAuthorizer) private var authorizer
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(LinkOpener.self) private var linkOpener
     @Query(sort: \NotificationSetting.createdAt) private var settings: [NotificationSetting]
     @StoredQuietHours private var quietHours
     @State private var isAdding = false
@@ -26,6 +27,7 @@ struct ContentView: View {
     }
 
     var body: some View {
+        @Bindable var linkOpener = linkOpener
         NavigationStack {
             List {
                 if authorization == .denied {
@@ -89,6 +91,11 @@ struct ContentView: View {
             .sheet(isPresented: $isEditingQuietHours) {
                 QuietHoursView()
             }
+            .alert("アプリを開けませんでした", isPresented: $linkOpener.isShowingFailure) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("紐づけた URL を確かめてください。開くアプリが入っていないと開けません")
+            }
             .task {
                 authorization = await authorizer.authorization()
             }
@@ -143,4 +150,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .modelContainer(for: NotificationSetting.self, inMemory: true)
+        .environment(LinkOpener())
 }
