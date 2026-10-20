@@ -27,7 +27,6 @@ struct ContentView: View {
     }
 
     var body: some View {
-        @Bindable var linkOpener = linkOpener
         NavigationStack {
             List {
                 if authorization == .denied {
@@ -53,7 +52,8 @@ struct ContentView: View {
                             } else {
                                 actions.undoCompletion(setting, in: modelContext)
                             }
-                        }
+                        },
+                        onOpenLink: openLinkAction(for: setting)
                     )
                 }
                 .onDelete { offsets in
@@ -84,18 +84,17 @@ struct ContentView: View {
             }
             .sheet(isPresented: $isAdding, onDismiss: requestAuthorizationIfEnabled) {
                 NotificationEditView()
+                    .linkOpenFailureAlert()
             }
             .sheet(item: $editingSetting, onDismiss: requestAuthorizationIfEnabled) { setting in
                 NotificationEditView(setting: setting)
+                    .linkOpenFailureAlert()
             }
             .sheet(isPresented: $isEditingQuietHours) {
                 QuietHoursView()
+                    .linkOpenFailureAlert()
             }
-            .alert("アプリを開けませんでした", isPresented: $linkOpener.isShowingFailure) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("紐づけた URL を確かめてください。開くアプリが入っていないと開けません")
-            }
+            .linkOpenFailureAlert()
             .task {
                 authorization = await authorizer.authorization()
             }
@@ -134,6 +133,18 @@ struct ContentView: View {
         }
         Task {
             authorization = await authorizer.requestIfNeeded()
+        }
+    }
+
+    /// 行の「開く」ボタンで行うこと。紐づけたアプリが無ければ nil（ボタンを出さない）
+    private func openLinkAction(for setting: NotificationSetting) -> (() -> Void)? {
+        guard let url = setting.linkDestination else {
+            return nil
+        }
+        return {
+            Task {
+                await linkOpener.open(url)
+            }
         }
     }
 

@@ -16,7 +16,7 @@ struct NottiApp: App {
     /// 通知センターは delegate を弱参照で持つため、ここで保持する
     private let notificationDelegate: NotificationDelegate
     /// 紐づけたアプリを開く。通知のアクションと一覧の画面で、開けなかったときの知らせを共有する
-    @State private var linkOpener: LinkOpener
+    private let linkOpener: LinkOpener
 
     init() {
         do {
@@ -27,8 +27,7 @@ struct NottiApp: App {
             fatalError("ModelContainer を作成できません: \(error)")
         }
         // 通知の「完了」のアクションは、アプリと同じ container に保存する
-        let linkOpener = LinkOpener()
-        _linkOpener = State(initialValue: linkOpener)
+        linkOpener = LinkOpener()
         notificationDelegate = NotificationDelegate(modelContainer: modelContainer, linkOpener: linkOpener)
         UNUserNotificationCenter.current().delegate = notificationDelegate
         // 通知のスヌーズ・完了のアクションは、カテゴリを登録しておかないと出ない

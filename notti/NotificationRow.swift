@@ -8,6 +8,7 @@ import SwiftUI
 /// 一覧の 1 行。文言といつ鳴らすか（間隔、または時刻と繰り返し）を出し、ON/OFF を切り替える。文言部分のタップで編集する
 /// おやすみ時間のせいで鳴らない通知と、日時を過ぎた 1 回だけの通知には、その旨を添える
 /// 完了するまで繰り返す ON の通知には、今の期間（今日・今週）の完了の状態と、完了・取り消しのボタンを出す
+/// 紐づけたアプリのある通知には、ON/OFF によらず、そのアプリを開くボタンを出す
 struct NotificationRow: View {
     let setting: NotificationSetting
     @Binding var isEnabled: Bool
@@ -16,6 +17,8 @@ struct NotificationRow: View {
     let onEdit: () -> Void
     /// 今の期間を完了にする（true）・完了を取り消す（false）
     var onSetCompleted: (Bool) -> Void = { _ in }
+    /// 紐づけたアプリを開く。nil ならボタンを出さない（紐づけたアプリが無い）
+    var onOpenLink: (() -> Void)?
 
     var body: some View {
         HStack {
@@ -58,9 +61,23 @@ struct NotificationRow: View {
                     }
                 }
             }
+            if let onOpenLink {
+                openLinkButton(action: onOpenLink)
+            }
             Toggle("通知", isOn: $isEnabled)
                 .labelsHidden()
+                .accessibilityIdentifier("enabledToggle")
         }
+    }
+
+    private func openLinkButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "arrow.up.forward.app")
+                .font(.title2)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("アプリを開く")
+        .accessibilityIdentifier("openLinkButton")
     }
 
     private func completionButton(isCompleted: Bool) -> some View {
