@@ -6,7 +6,8 @@
 import Foundation
 
 extension NotificationSetting {
-    /// 一覧に出す、いつ鳴らすかの表記（例: 「1 時間ごと」「毎日 9:00」「毎週 月・金 21:30」「10月25日 9:30 に 1 回」）
+    /// 一覧に出す、いつ鳴らすかの表記（例: 「1 時間ごと」「毎日 9:00」「毎週 月・金 21:30」「10月25日 9:30 に 1 回」
+    /// 「毎月 1・15 日・月末 9:00」）
     ///
     /// 完了するまで繰り返す通知には、催促の間隔を添える（例: 「毎日 21:00・完了まで 30 分ごと」）
     ///
@@ -57,8 +58,23 @@ extension NotificationSetting {
             let time = Self.label(of: TimeOfDay(hour: components.hour ?? 0, minute: components.minute ?? 0))
             return "\(year)\(components.month ?? 0)月\(components.day ?? 0)日 \(time) に 1 回"
         case .monthly:
-            return "毎月 \(time)"
+            guard let days = Self.monthlyDaysLabel(monthDays: monthDays, monthEndOffset: monthEndOffset) else {
+                return "毎月（日付なし）"
+            }
+            return "毎月 \(days) \(time)"
         }
+    }
+
+    /// 毎月の鳴らす日の表記（例: 「10・27 日」「月末」「月末の 3 日前」「1・15 日・月末」）。日付は小さい順。日付も月末も無ければ nil
+    private static func monthlyDaysLabel(monthDays: Set<Int>, monthEndOffset: Int?) -> String? {
+        var parts: [String] = []
+        if !monthDays.isEmpty {
+            parts.append("\(monthDays.sorted().map(String.init).joined(separator: "・")) 日")
+        }
+        if let monthEndOffset {
+            parts.append(monthEndOffset == 0 ? "月末" : "月末の \(monthEndOffset) 日前")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: "・")
     }
 
     /// ON の 1 回だけの通知で、日時が無いか過ぎている（もう鳴らない）
