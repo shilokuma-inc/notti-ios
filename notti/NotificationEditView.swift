@@ -124,13 +124,13 @@ struct NotificationEditView: View {
     private var timeOfDaySection: some View {
         Section {
             Picker("繰り返し", selection: $draft.schedule.repeatRule) {
-                ForEach(NotificationRepeat.allCases) { repeatRule in
+                ForEach(NotificationRepeat.selectableCases) { repeatRule in
                     Text(repeatRule.label).tag(repeatRule)
                 }
             }
             .pickerStyle(.segmented)
             switch draft.schedule.repeatRule {
-            case .daily:
+            case .daily, .monthly:
                 timePicker
             case .weekdays:
                 timePicker
@@ -150,6 +150,9 @@ struct NotificationEditView: View {
                         .foregroundStyle(.orange)
                 case .pastOnceDate:
                     Label("過ぎた日時は登録できません", systemImage: "exclamationmark.circle")
+                        .foregroundStyle(.orange)
+                case .noMonthDay:
+                    Label("日付か月末を 1 つ以上選んでください", systemImage: "exclamationmark.circle")
                         .foregroundStyle(.orange)
                 case .multipleWeekdaysUntilDone:
                     Label("完了するまで繰り返すときは、曜日を 1 つだけ選んでください", systemImage: "exclamationmark.circle")
@@ -190,7 +193,7 @@ struct NotificationEditView: View {
                     }
                     timeOfDayPicker("週の始まりの時刻", time: $draft.untilDoneRule.weekStart.time)
                         .accessibilityIdentifier("weekStartTimePicker")
-                case .once:
+                case .once, .monthly:
                     EmptyView()
                 }
             }
