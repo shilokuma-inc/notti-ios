@@ -80,4 +80,11 @@ struct LinkURLTests {
         #expect(LinkURL.problem(of: "examplebank://open balance") == .unreadable)
         #expect(LinkURL.url(from: "https://exa mple.com") == nil)
     }
+
+    /// パスの空白は `URL(string:)` が `%20` にするので受け付ける（開けば動く）
+    @Test
+    func whitespaceInsidePathIsEncoded() {
+        #expect(LinkURL.problem(of: "https://example.com/a b") == nil)
+        #expect(LinkURL.url(from: "https://example.com/a b")?.absoluteString == "https://example.com/a%20b")
+    }
 }
