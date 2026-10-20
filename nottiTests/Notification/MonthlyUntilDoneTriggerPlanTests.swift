@@ -202,6 +202,39 @@ struct MonthlyUntilDoneTriggerPlanTests {
         #expect(components.first.flatMap { Self.calendar().date(from: $0) } == Self.date(2026, 10, 5, 6, 0))
     }
 
+    @Test
+    func nextMonthFirstNagInsideThreeDaysSurvivesCap() throws {
+        // 1 日 6:00 から 10 分ごと。10/30 だけで 108 件あり、3 日ぶんに入る 11/1 6:00（来月の最初の催促）も残す
+        let plan = NotificationTriggerPlan.make(
+            schedule: TimeOfDaySchedule(time: Self.time(6, 0), repeatRule: .monthly, monthDays: [1]),
+            rule: UntilDoneRule(interval: .tenMinutes),
+            completedPeriodStarts: [],
+            now: Self.date(2026, 10, 30, 5, 0),
+            calendar: Self.calendar()
+        )
+
+        guard case let .untilDone(components) = plan else {
+            Issue.record("催促のトリガーになるはず: \(plan)")
+            return
+        }
+        let dates = components.compactMap { Self.calendar().date(from: $0) }
+        #expect(dates.count == NotificationScheduler.pendingLimit)
+        #expect(dates == dates.sorted())
+        #expect(Set(dates).isSuperset(of: [Self.date(2026, 11, 1, 6, 0), Self.date(2026, 12, 1, 6, 0), Self.date(2027, 1, 1, 6, 0)]))
+        // 残りの枠は 10/30 の早い順（10/30 は 10 月の催促の続き）
+        #expect(dates.first == Self.date(2026, 10, 30, 6, 0))
+        #expect(dates.filter { $0 < Self.date(2026, 10, 31, 0, 0) }.count == NotificationScheduler.pendingLimit - 3)
+    }
+
+    @Test
+    func fewNagsAreNotCapped() {
+        // 21:00 から 1 時間ごとなら 3 日ぶん（5〜7 日の 21〜23 時）は 9 件で、上限に届かない。今月の分は 3 日ぶんに入り、先の月の 2 本を足す
+        let dates = Self.fireDates(monthDays: [5], now: Self.date(2026, 10, 5, 12, 0))
+
+        #expect(dates.count == 11)
+        #expect(dates.suffix(2) == [Self.date(2026, 11, 5, 21, 0), Self.date(2026, 12, 5, 21, 0)])
+    }
+
     // MARK: - 補助
 
     private static func fireDates(
