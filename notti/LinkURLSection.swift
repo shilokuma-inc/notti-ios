@@ -23,7 +23,7 @@ struct LinkURLSection: View {
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 Text(
-                    "通知を長押ししたときの「アプリを開く」と、一覧のボタンから開けます。完了するまで繰り返す通知では、のっちに戻ったときに済んだかを聞きます。URL を消すと紐づけを外します"
+                    "通知を長押ししたときの「アプリを開く」と、一覧のボタンから開けます。完了するまで繰り返す通知では、\(AppDisplayName.current)に戻ったときに済んだかを聞きます。URL を消すと紐づけを外します"
                 )
                 // 保存できない理由は文言・時刻と繰り返し・URL の順で 1 つだけ決まる。時刻の理由が先に出ていても見えるよう、ここでは URL の理由を直接出す
                 switch LinkURL.problem(of: linkURL) {
