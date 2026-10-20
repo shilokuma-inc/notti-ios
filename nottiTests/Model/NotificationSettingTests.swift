@@ -78,7 +78,7 @@ struct NotificationSettingTests {
     func unknownStoredValuesFallBackToDefaults() {
         let setting = NotificationSetting(message: "水を飲む")
         setting.kindRawValue = "unknown"
-        setting.repeatRawValue = "monthly"
+        setting.repeatRawValue = "yearly"
         setting.weekdayMask = 0b1000_0000
 
         #expect(setting.kind == .interval)
