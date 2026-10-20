@@ -156,7 +156,7 @@ final class NotificationEditUITests: XCTestCase {
         app.buttons["31 日"].tap()
         XCTAssertTrue(element(containing: "その日が無い月には鳴りません", in: app).waitForExistence(timeout: 5))
         app.buttons["31 日"].tap()
-        XCTAssertFalse(element(containing: "その日が無い月には鳴りません", in: app).exists)
+        XCTAssertTrue(element(containing: "その日が無い月には鳴りません", in: app).waitForNonExistence(timeout: 5))
         app.buttons["27 日"].tap()
 
         // 月末を ON にすると、何日前かの欄と、3 か月で止まる旨の注意書きが出る
@@ -167,7 +167,7 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["monthEndOffsetPicker"].waitForExistence(timeout: 5))
         XCTAssertTrue(element(containing: "3 か月アプリを開かないと", in: app).exists)
         monthEnd.switches.firstMatch.tap()
-        XCTAssertFalse(app.descendants(matching: .any)["monthEndOffsetPicker"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["monthEndOffsetPicker"].waitForNonExistence(timeout: 5))
 
         XCTAssertTrue(save.isEnabled)
         save.tap()
