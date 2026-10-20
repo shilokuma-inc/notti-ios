@@ -42,7 +42,9 @@ struct NotificationEditView: View {
         }
         var trimmed = savingDraft
         trimmed.message = trimmed.message.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isChanged = setting.map { $0.draft != trimmed } ?? true
+        trimmed.linkURL = LinkURL.normalized(trimmed.linkURL)
+        // URL だけの変更では登録し直さず起点も変わらない（`NotificationSettingActions.save` と同じ判定）
+        let isChanged = setting.map { trimmed.requiresRescheduling(from: $0.draft) } ?? true
         let startDate = isChanged ? .now : setting?.startDate ?? .now
         let calendar = Calendar.current
         let plan = NotificationTriggerPlan.make(
