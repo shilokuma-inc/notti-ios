@@ -208,7 +208,13 @@ final class NotificationEditUITests: XCTestCase {
         app.switches["monthEndToggle"].switches.firstMatch.tap()
         XCTAssertFalse(app.buttons["15 日"].isSelected)
 
+        // 文言の欄は Form の一番上にある。下の「アプリを開く」の節まで送ると画面から外れるため、上に戻す
+        // Form は画面外の欄を要素として持たないので、押せるようになるまで上に戻す
         let field = app.descendants(matching: .any)["messageField"]
+        for _ in 0..<3 where !(field.exists && field.isHittable) {
+            app.swipeDown()
+        }
+        XCTAssertTrue(field.waitForExistence(timeout: 15))
         field.tap()
         field.typeText("締め日")
         let save = app.navigationBars["通知を追加"].buttons["保存"]
@@ -220,6 +226,62 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertTrue(element(containing: "今月はまだ完了していません", in: app).waitForExistence(timeout: 5))
         app.buttons["完了にする"].tap()
         XCTAssertTrue(element(containing: "今月は完了済み", in: app).waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testLinkURLIsSavedAndShownWhenEditing() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+
+        app.navigationBars["通知"].buttons["追加"].tap()
+        let field = app.descendants(matching: .any)["messageField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15))
+        field.tap()
+        field.typeText("水を飲む")
+
+        // 「アプリを開く」の節は Form の一番下にある
+        app.swipeUp()
+        let linkField = app.textFields["linkURLField"]
+        XCTAssertTrue(linkField.waitForExistence(timeout: 15))
+        linkField.tap()
+        linkField.typeText("https://example.com")
+        app.navigationBars["通知を追加"].buttons["保存"].tap()
+        allowNotificationsIfAsked()
+
+        // もう一度開くと、入れた URL が残っている
+        let row = app.buttons["水を飲む, 1 時間ごと"]
+        XCTAssertTrue(row.waitForExistence(timeout: 15))
+        row.tap()
+        XCTAssertTrue(app.navigationBars["通知を編集"].waitForExistence(timeout: 15))
+        app.swipeUp()
+        let savedLinkField = app.textFields["linkURLField"]
+        XCTAssertTrue(savedLinkField.waitForExistence(timeout: 15))
+        XCTAssertEqual(savedLinkField.value as? String, "https://example.com")
+    }
+
+    @MainActor
+    func testUnreadableLinkURLCannotBeSaved() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+
+        app.navigationBars["通知"].buttons["追加"].tap()
+        let field = app.descendants(matching: .any)["messageField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15))
+        field.tap()
+        field.typeText("残高")
+        let save = app.navigationBars["通知を追加"].buttons["保存"]
+        XCTAssertTrue(save.isEnabled)
+
+        // スキームの無い URL は読めないので保存できず、理由を出す
+        app.swipeUp()
+        let linkField = app.textFields["linkURLField"]
+        XCTAssertTrue(linkField.waitForExistence(timeout: 15))
+        linkField.tap()
+        linkField.typeText("example.com")
+        XCTAssertTrue(element(containing: "URL を読めません", in: app).waitForExistence(timeout: 15))
+        XCTAssertFalse(save.isEnabled)
     }
 
     /// ラベルに `text` を含む要素。行の文言は、編集ボタンのラベルにまとめられることも、個別の文字として出ることもある

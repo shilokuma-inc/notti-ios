@@ -59,4 +59,32 @@ struct LinkURLTests {
         #expect(LinkURL.problem(of: "data:text/html,hello") == .unsupportedScheme)
         #expect(LinkURL.url(from: "javascript:alert(1)") == nil)
     }
+
+    @Test
+    func unsafeSchemeWithSurroundingWhitespaceCannotBeSaved() {
+        #expect(LinkURL.problem(of: "  javascript:alert(1)") == .unsupportedScheme)
+        #expect(LinkURL.problem(of: "javascript:alert(1)\n") == .unsupportedScheme)
+        #expect(LinkURL.url(from: "  javascript:alert(1)") == nil)
+    }
+
+    @Test
+    func uppercaseUnsafeSchemesCannotBeSaved() {
+        #expect(LinkURL.problem(of: "FILE:///etc/hosts") == .unsupportedScheme)
+        #expect(LinkURL.problem(of: "DATA:text/html,hello") == .unsupportedScheme)
+    }
+
+    @Test
+    func whitespaceInsideHostCannotBeSaved() {
+        #expect(LinkURL.problem(of: "https://exa mple.com") == .unreadable)
+        #expect(LinkURL.problem(of: "https://exa\nmple.com") == .unreadable)
+        #expect(LinkURL.problem(of: "examplebank://open balance") == .unreadable)
+        #expect(LinkURL.url(from: "https://exa mple.com") == nil)
+    }
+
+    /// パスの空白は `URL(string:)` が `%20` にするので受け付ける（開けば動く）
+    @Test
+    func whitespaceInsidePathIsEncoded() {
+        #expect(LinkURL.problem(of: "https://example.com/a b") == nil)
+        #expect(LinkURL.url(from: "https://example.com/a b")?.absoluteString == "https://example.com/a%20b")
+    }
 }
