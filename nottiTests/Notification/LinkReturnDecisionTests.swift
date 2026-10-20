@@ -36,6 +36,15 @@ struct LinkReturnDecisionTests {
     }
 
     @Test
+    func openedAtSameTimeAsBackgroundIsAsked() {
+        let setting = daily(openedAt: date(10, 5, 12, 0))
+
+        let result = decision(setting, backgroundedAt: date(10, 5, 12, 0), now: date(10, 5, 12, 10))
+
+        #expect(result == .ask(period: CompletionPeriod(start: date(10, 5, 0, 0), end: date(10, 6, 0, 0))))
+    }
+
+    @Test
     func askedAfterReturningFromBackground() {
         let setting = daily(openedAt: date(10, 5, 12, 0))
 
@@ -50,7 +59,8 @@ struct LinkReturnDecisionTests {
     func dailyIsDiscardedAfterDayBoundary() {
         let setting = daily(openedAt: date(10, 5, 23, 50))
 
-        #expect(decision(setting, backgroundedAt: date(10, 5, 23, 51), now: date(10, 5, 23, 59)) != .discard)
+        let period = CompletionPeriod(start: date(10, 5, 0, 0), end: date(10, 6, 0, 0))
+        #expect(decision(setting, backgroundedAt: date(10, 5, 23, 51), now: date(10, 5, 23, 59)) == .ask(period: period))
         #expect(decision(setting, backgroundedAt: date(10, 5, 23, 51), now: date(10, 6, 0, 0)) == .discard)
     }
 
@@ -236,6 +246,28 @@ struct LinkReturnActionsTests {
         await actions.completeLinkReturn(setting, in: container.mainContext, now: Self.date(10, 6, 0, 5)).value
 
         #expect(setting.completions.map(\.periodStart) == [Self.date(10, 5, 0, 0)])
+        #expect(setting.linkOpenedAt == nil)
+        #expect(!container.mainContext.hasChanges)
+    }
+
+    @Test
+    func completingReturnWithoutOpenedAtDoesNothing() async {
+        let setting = insert(untilDone: true)
+
+        await actions.completeLinkReturn(setting, in: container.mainContext, now: Self.now).value
+
+        #expect(setting.completions.isEmpty)
+    }
+
+    @Test
+    func completingReturnOfCompletedPeriodClearsOpenedAtOnly() async {
+        let setting = insert(untilDone: true)
+        container.mainContext.insert(CompletionRecord(periodStart: Self.date(10, 5, 0, 0), completedAt: Self.now, setting: setting))
+        setting.linkOpenedAt = Self.now
+
+        await actions.completeLinkReturn(setting, in: container.mainContext, now: Self.now).value
+
+        #expect(setting.completions.count == 1)
         #expect(setting.linkOpenedAt == nil)
         #expect(!container.mainContext.hasChanges)
     }
