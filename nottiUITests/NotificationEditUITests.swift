@@ -332,6 +332,33 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertTrue(app.buttons["\(message), 1 時間ごと"].waitForExistence(timeout: 15))
     }
 
+    @MainActor
+    func testChoosingLinkCandidateFillsLinkURL() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+
+        app.navigationBars["通知"].buttons["追加"].tap()
+        XCTAssertTrue(app.descendants(matching: .any)["messageField"].waitForExistence(timeout: 15))
+
+        // 「アプリを開く」の節は Form の一番下にある。Form は画面外の欄を要素として持たないので、押せるようになるまで送る
+        let linkField = app.textFields["linkURLField"]
+        for _ in 0..<3 where !(linkField.exists && linkField.isHittable) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(linkField.waitForExistence(timeout: 15))
+
+        let menu = app.buttons["linkCandidateMenu"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 15))
+        menu.tap()
+        let candidate = app.buttons["LINE"]
+        XCTAssertTrue(candidate.waitForExistence(timeout: 15))
+        candidate.tap()
+
+        XCTAssertEqual(linkField.value as? String, "https://line.me/R/nv/wallet")
+        XCTAssertTrue(element(containing: "LINE を開きます", in: app).waitForExistence(timeout: 15))
+    }
+
     /// ラベルに `text` を含む要素。行の文言は、編集ボタンのラベルにまとめられることも、個別の文字として出ることもある
     @MainActor
     private func element(containing text: String, in app: XCUIApplication) -> XCUIElement {
