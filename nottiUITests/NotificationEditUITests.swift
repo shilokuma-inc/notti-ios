@@ -209,9 +209,11 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertFalse(app.buttons["15 日"].isSelected)
 
         // 文言の欄は Form の一番上にある。下の「アプリを開く」の節まで送ると画面から外れるため、上に戻す
-        app.swipeDown()
         let field = app.descendants(matching: .any)["messageField"]
         XCTAssertTrue(field.waitForExistence(timeout: 15))
+        for _ in 0..<3 where !field.isHittable {
+            app.swipeDown()
+        }
         field.tap()
         field.typeText("締め日")
         let save = app.navigationBars["通知を追加"].buttons["保存"]
@@ -277,8 +279,8 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertTrue(linkField.waitForExistence(timeout: 15))
         linkField.tap()
         linkField.typeText("example.com")
-        XCTAssertFalse(save.isEnabled)
         XCTAssertTrue(element(containing: "URL を読めません", in: app).waitForExistence(timeout: 15))
+        XCTAssertFalse(save.isEnabled)
     }
 
     /// ラベルに `text` を含む要素。行の文言は、編集ボタンのラベルにまとめられることも、個別の文字として出ることもある
