@@ -301,9 +301,10 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertEqual(openButtons.firstMatch.label, "アプリを開く")
 
         // OFF にしても出る
-        let toggles = app.switches.allElementsBoundByIndex
+        let toggles = app.switches.matching(identifier: "enabledToggle")
         XCTAssertEqual(toggles.count, 2)
-        toggles[1].switches.firstMatch.tap()
+        toggles.element(boundBy: 1).switches.firstMatch.tap()
+        XCTAssertEqual(toggles.element(boundBy: 1).value as? String, "0")
         XCTAssertTrue(openButtons.firstMatch.waitForExistence(timeout: 15))
         XCTAssertEqual(openButtons.count, 1)
     }

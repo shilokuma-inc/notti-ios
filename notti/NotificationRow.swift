@@ -66,6 +66,7 @@ struct NotificationRow: View {
             }
             Toggle("通知", isOn: $isEnabled)
                 .labelsHidden()
+                .accessibilityIdentifier("enabledToggle")
         }
     }
 
