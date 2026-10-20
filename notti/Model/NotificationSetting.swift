@@ -144,8 +144,9 @@ final class NotificationSetting {
             return min(max(monthEndOffsetDays, range.lowerBound), range.upperBound)
         }
         set {
+            let range = MonthDay.monthEndOffsetRange
             repeatsOnMonthEnd = newValue != nil
-            monthEndOffsetDays = newValue ?? 0
+            monthEndOffsetDays = newValue.map { min(max($0, range.lowerBound), range.upperBound) } ?? 0
         }
     }
 

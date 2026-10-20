@@ -100,7 +100,8 @@ extension NotificationDraft {
             let trigger = schedule.onceDate.flatMap { TimeOfDayTrigger.once(at: $0, now: now, calendar: calendar) }
             return trigger == nil ? .pastOnceDate : nil
         case .monthly:
-            return schedule.monthDays.isEmpty && schedule.monthEndOffset == nil ? .noMonthDay : nil
+            let hasMonthDay = schedule.monthDays.contains(where: MonthDay.range.contains)
+            return !hasMonthDay && schedule.monthEndOffset == nil ? .noMonthDay : nil
         }
     }
 }
