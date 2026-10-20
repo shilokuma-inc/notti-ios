@@ -209,11 +209,12 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertFalse(app.buttons["15 日"].isSelected)
 
         // 文言の欄は Form の一番上にある。下の「アプリを開く」の節まで送ると画面から外れるため、上に戻す
+        // Form は画面外の欄を要素として持たないので、押せるようになるまで上に戻す
         let field = app.descendants(matching: .any)["messageField"]
-        XCTAssertTrue(field.waitForExistence(timeout: 15))
-        for _ in 0..<3 where !field.isHittable {
+        for _ in 0..<3 where !(field.exists && field.isHittable) {
             app.swipeDown()
         }
+        XCTAssertTrue(field.waitForExistence(timeout: 15))
         field.tap()
         field.typeText("締め日")
         let save = app.navigationBars["通知を追加"].buttons["保存"]
