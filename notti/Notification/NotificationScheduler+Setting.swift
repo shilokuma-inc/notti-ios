@@ -8,7 +8,8 @@ import Foundation
 extension NotificationScheduler {
     /// 設定の種類に合わせて、登録するトリガーを決める（間隔は今のおやすみ時間で、時刻指定はおやすみ時間を適用せずに）
     ///
-    /// 完了するまで繰り返す通知は、毎日・曜日のトリガーの代わりに催促の日時を登録する（最初の催促が設定した時刻）
+    /// 完了するまで繰り返す通知は、毎日・曜日・毎月のトリガーの代わりに催促の日時を登録する（最初の催促が設定した時刻）。
+    /// 毎月なら、日付ごとの繰り返し・月末（N 日前）の 1 回きりは登録しない
     ///
     /// - Parameter now: 1 回だけの通知の日時が過ぎたかどうか、催促のどの日時から登録するかの基準
     func plan(for setting: NotificationSetting, now: Date = .now) -> NotificationTriggerPlan {

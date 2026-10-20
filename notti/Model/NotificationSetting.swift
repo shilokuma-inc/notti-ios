@@ -9,7 +9,8 @@ import SwiftData
 /// ユーザーが登録した通知 1 件ぶんの設定
 ///
 /// 時刻指定の項目（`kindRawValue` 以降）は後から足したもの。既存の保存データを間隔の通知として読めるよう、
-/// すべて既定値を持たせて軽量マイグレーションで済ませている。「完了するまで繰り返す」の項目（`repeatsUntilDone` 以降）も同じ
+/// すべて既定値を持たせて軽量マイグレーションで済ませている。「完了するまで繰り返す」の項目（`repeatsUntilDone` 以降）と、
+/// 毎月の項目（`monthDayMask` 以降）も同じ
 @Model
 final class NotificationSetting {
     /// 通知の identifier の元にする安定した ID
@@ -26,9 +27,9 @@ final class NotificationSetting {
     var createdAt: Date
     /// 通知の種類（`NotificationKind` の raw 値）
     var kindRawValue: String = NotificationKind.interval.rawValue
-    /// 鳴らす時刻の時（0〜23）。種類が時刻指定で、繰り返しが毎日・曜日のときに使う
+    /// 鳴らす時刻の時（0〜23）。種類が時刻指定で、繰り返しが毎日・曜日・毎月のときに使う
     var hour: Int = 9
-    /// 鳴らす時刻の分（0〜59）。種類が時刻指定で、繰り返しが毎日・曜日のときに使う
+    /// 鳴らす時刻の分（0〜59）。種類が時刻指定で、繰り返しが毎日・曜日・毎月のときに使う
     var minute: Int = 0
     /// 時刻指定の繰り返し方（`NotificationRepeat` の raw 値）
     var repeatRawValue: String = NotificationRepeat.daily.rawValue
@@ -36,7 +37,7 @@ final class NotificationSetting {
     var weekdayMask: Int = 0
     /// 繰り返しが 1 回だけのときに鳴らす日時
     var onceDate: Date?
-    /// 完了するまで繰り返すかどうか。種類が時刻指定で、繰り返しが毎日・曜日のときに使う
+    /// 完了するまで繰り返すかどうか。種類が時刻指定で、繰り返しが毎日・曜日・毎月のときに使う
     var repeatsUntilDone: Bool = false
     /// 完了するまで催促する間隔（分）。`NagInterval` の raw 値
     var nagIntervalMinutes: Int = NagInterval.default.rawValue
@@ -50,6 +51,12 @@ final class NotificationSetting {
     var weekStartHour: Int = 0
     /// 週が始まる時刻の分（0〜59）
     var weekStartMinute: Int = 0
+    /// 繰り返しが毎月のときに鳴らす日付（`MonthDay.bit(of:)` の和）
+    var monthDayMask: Int = 0
+    /// 繰り返しが毎月のときに、月末（`monthEndOffsetDays` 日前）にも鳴らすかどうか
+    var repeatsOnMonthEnd: Bool = false
+    /// 月末の何日前に鳴らすか（0 = 月末の当日）。`repeatsOnMonthEnd` が true のときに使う
+    var monthEndOffsetDays: Int = 0
     /// 完了の記録。通知を削除したら一緒に消す
     @Relationship(deleteRule: .cascade, inverse: \CompletionRecord.setting)
     var completions: [CompletionRecord] = []
@@ -67,6 +74,8 @@ final class NotificationSetting {
         repeatRule: NotificationRepeat = .daily,
         weekdays: Set<Weekday> = [],
         onceDate: Date? = nil,
+        monthDays: Set<Int> = [],
+        monthEndOffset: Int? = nil,
         repeatsUntilDone: Bool = false,
         untilDoneRule: UntilDoneRule = UntilDoneRule()
     ) {
@@ -82,6 +91,9 @@ final class NotificationSetting {
         self.repeatRawValue = repeatRule.rawValue
         self.weekdayMask = Weekday.mask(of: weekdays)
         self.onceDate = onceDate
+        self.monthDayMask = MonthDay.mask(of: monthDays)
+        self.repeatsOnMonthEnd = monthEndOffset != nil
+        self.monthEndOffsetDays = monthEndOffset ?? 0
         self.repeatsUntilDone = repeatsUntilDone
         self.nagIntervalMinutes = untilDoneRule.interval.minutes
         self.dayBoundaryHour = untilDoneRule.dayBoundary.hour
@@ -115,7 +127,30 @@ final class NotificationSetting {
         set { weekdayMask = Weekday.mask(of: newValue) }
     }
 
-    /// 毎日・曜日の通知を鳴らす時刻
+    /// 繰り返しが毎月のときに鳴らす日付（1〜31 日）
+    var monthDays: Set<Int> {
+        get { MonthDay.set(fromMask: monthDayMask) }
+        set { monthDayMask = MonthDay.mask(of: newValue) }
+    }
+
+    /// 繰り返しが毎月のときに、月末の何日前に鳴らすか（0 = 月末の当日）。月末に鳴らさないなら nil。
+    /// 保存値が範囲外なら `MonthDay.monthEndOffsetRange` に収める
+    var monthEndOffset: Int? {
+        get {
+            guard repeatsOnMonthEnd else {
+                return nil
+            }
+            let range = MonthDay.monthEndOffsetRange
+            return min(max(monthEndOffsetDays, range.lowerBound), range.upperBound)
+        }
+        set {
+            let range = MonthDay.monthEndOffsetRange
+            repeatsOnMonthEnd = newValue != nil
+            monthEndOffsetDays = newValue.map { min(max($0, range.lowerBound), range.upperBound) } ?? 0
+        }
+    }
+
+    /// 毎日・曜日・毎月の通知を鳴らす時刻
     var timeOfDay: TimeOfDay {
         get { TimeOfDay(hour: hour, minute: minute) }
         set {

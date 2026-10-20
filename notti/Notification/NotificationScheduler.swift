@@ -11,7 +11,8 @@ import UserNotifications
 /// identifier は設定の ID（`<id>`）を元にする。1 件の設定から複数の通知を作るときは `<id>-<接尾辞>` にし、`remove(id:)` でまとめて消す。
 /// - 間隔（おやすみ時間なし）: `<id>`
 /// - 間隔（おやすみ時間あり）: `<id>-<hour>`（hour は 0〜23）
-/// - 時刻指定: 毎日 `<id>-daily` / 曜日 `<id>-weekday<1〜7>` / 1 回だけ `<id>-once`
+/// - 時刻指定: 毎日 `<id>-daily` / 曜日 `<id>-weekday<1〜7>` / 1 回だけ `<id>-once` / 毎月の日付 `<id>-monthday<1〜31>` /
+///   毎月の月末（N 日前）`<id>-monthend<yyyyMMddHHmm>`（鳴らす日時ごと。日付を指定した 1 回きり）
 /// - 完了するまで繰り返す催促: `<id>-nag<yyyyMMddHHmm>`（鳴らす日時ごと。日付を指定した 1 回きり）
 /// - スヌーズ: `<id>-snooze`（通知のアクションから予約する。設定の登録し直しでは消さない）
 nonisolated struct NotificationScheduler: Sendable {
@@ -87,7 +88,7 @@ nonisolated struct NotificationScheduler: Sendable {
         return plan
     }
 
-    /// `message` を `schedule` の時刻に通知する（毎日・曜日・1 回だけ）。登録済みの同じ `id` の通知は置き換える
+    /// `message` を `schedule` の時刻に通知する（毎日・曜日・1 回だけ・毎月）。登録済みの同じ `id` の通知は置き換える
     ///
     /// 1 回だけの日時が過ぎていれば、登録済みの通知を消すだけで何も登録しない
     ///
@@ -99,7 +100,7 @@ nonisolated struct NotificationScheduler: Sendable {
         return plan
     }
 
-    /// 「完了するまで繰り返す」通知の催促を登録する。登録済みの同じ `id` の通知（毎日・曜日のトリガーも）は置き換える
+    /// 「完了するまで繰り返す」通知の催促を登録する。登録済みの同じ `id` の通知（毎日・曜日・毎月のトリガーも）は置き換える
     ///
     /// - Returns: 登録したトリガー
     @discardableResult
@@ -214,14 +215,22 @@ nonisolated struct NotificationScheduler: Sendable {
             "\(identifier(for: id))-weekday\(weekday.rawValue)"
         case .once:
             "\(identifier(for: id))-once"
+        case let .monthDay(day, _):
+            "\(identifier(for: id))-monthday\(day)"
+        case let .monthEnd(components):
+            "\(identifier(for: id))-monthend\(stamp(of: components))"
         }
     }
 
     /// 「完了するまで繰り返す」通知の催促の、鳴らす日時ごとの identifier（`<id>-nag<yyyyMMddHHmm>`）
     static func identifier(for id: UUID, nagAt components: DateComponents) -> String {
+        "\(identifier(for: id))-nag\(stamp(of: components))"
+    }
+
+    /// 日時ごとの identifier の接尾辞（`yyyyMMddHHmm`）
+    private static func stamp(of components: DateComponents) -> String {
         let fields = [components.year, components.month, components.day, components.hour, components.minute].map { $0 ?? 0 }
-        let stamp = String(format: "%04d%02d%02d%02d%02d", fields[0], fields[1], fields[2], fields[3], fields[4])
-        return "\(identifier(for: id))-nag\(stamp)"
+        return String(format: "%04d%02d%02d%02d%02d", fields[0], fields[1], fields[2], fields[3], fields[4])
     }
 
     /// スヌーズで予約する通知の identifier
@@ -353,7 +362,8 @@ nonisolated struct PendingNotification: Equatable, Sendable {
     var minute: Int?
     /// `UNCalendarNotificationTrigger` の曜日（1 = 日曜）。曜日を指定しないトリガーなら nil
     var weekday: Int?
-    /// `UNCalendarNotificationTrigger` の年・月・日。日付を指定しない（繰り返す）トリガーなら nil
+    /// `UNCalendarNotificationTrigger` の年・月・日。日付を指定した 1 回きり（1 回だけ・月末（N 日前）・催促）は年・月・日、
+    /// 毎月の日付の繰り返しは日だけ。毎日・曜日の繰り返しなら nil
     var year: Int?
     var month: Int?
     var day: Int?

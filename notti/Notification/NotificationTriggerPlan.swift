@@ -60,12 +60,13 @@ nonisolated enum NotificationTriggerPlan: Equatable, Sendable {
     /// - 毎日: その時刻に繰り返す 1 本
     /// - 曜日: 選んだ曜日ごとに 1 本（最大 7 本）。曜日が無ければ 0 本
     /// - 1 回だけ: `onceDate` に鳴らす 1 本（`TimeOfDayTrigger.once(at:now:calendar:)`）。日時が無い・過ぎているなら 0 本
+    /// - 毎月: 選んだ日付ごとに繰り返す 1 本（最大 31 本）と、月末（N 日前）の 1 回きりを 3 回ぶん（`monthlyTriggers(schedule:now:calendar:)`）
     ///
     /// おやすみ時間は適用しない（ユーザーが時刻を明示しているため）
     ///
     /// - Parameters:
-    ///   - now: 1 回だけの通知の日時が過ぎたかどうかの基準
-    ///   - calendar: 1 回だけの日時を年・月・日・時・分に分ける暦。タイムゾーンもここから取る
+    ///   - now: 1 回だけ・月末（N 日前）の通知の日時が過ぎたかどうかの基準
+    ///   - calendar: 1 回だけ・月末（N 日前）の日時を年・月・日・時・分に分ける暦。タイムゾーンもここから取る
     static func make(schedule: TimeOfDaySchedule, now: Date, calendar: Calendar) -> Self {
         switch schedule.repeatRule {
         case .daily:
@@ -75,6 +76,8 @@ nonisolated enum NotificationTriggerPlan: Equatable, Sendable {
         case .once:
             let once = schedule.onceDate.flatMap { TimeOfDayTrigger.once(at: $0, now: now, calendar: calendar) }
             return .timeOfDay(once.map { [$0] } ?? [])
+        case .monthly:
+            return .timeOfDay(monthlyTriggers(schedule: schedule, now: now, calendar: calendar))
         }
     }
 }

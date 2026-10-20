@@ -124,7 +124,7 @@ struct NotificationEditView: View {
     private var timeOfDaySection: some View {
         Section {
             Picker("繰り返し", selection: $draft.schedule.repeatRule) {
-                ForEach(NotificationRepeat.allCases) { repeatRule in
+                ForEach(NotificationRepeat.selectableCases) { repeatRule in
                     Text(repeatRule.label).tag(repeatRule)
                 }
             }
@@ -132,6 +132,13 @@ struct NotificationEditView: View {
             switch draft.schedule.repeatRule {
             case .daily:
                 timePicker
+            case .monthly:
+                timePicker
+                MonthDayPicker(
+                    monthDays: $draft.schedule.monthDays,
+                    monthEndOffset: $draft.schedule.monthEndOffset,
+                    selectsOne: draft.repeatsUntilDone
+                )
             case .weekdays:
                 timePicker
                 weekdayPicker
@@ -144,6 +151,9 @@ struct NotificationEditView: View {
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 Text("端末の時刻で通知します。おやすみ時間のあいだでも通知します")
+                if draft.schedule.repeatRule == .monthly {
+                    monthlyNotes
+                }
                 switch savingDraft.problem() {
                 case .noWeekday:
                     Label("曜日を 1 つ以上選んでください", systemImage: "exclamationmark.circle")
@@ -151,8 +161,14 @@ struct NotificationEditView: View {
                 case .pastOnceDate:
                     Label("過ぎた日時は登録できません", systemImage: "exclamationmark.circle")
                         .foregroundStyle(.orange)
+                case .noMonthDay:
+                    Label("日付か月末を 1 つ以上選んでください", systemImage: "exclamationmark.circle")
+                        .foregroundStyle(.orange)
                 case .multipleWeekdaysUntilDone:
                     Label("完了するまで繰り返すときは、曜日を 1 つだけ選んでください", systemImage: "exclamationmark.circle")
+                        .foregroundStyle(.orange)
+                case .multipleMonthDaysUntilDone:
+                    Label("完了するまで繰り返すときは、日付か月末を 1 つだけ選んでください", systemImage: "exclamationmark.circle")
                         .foregroundStyle(.orange)
                 case .emptyMessage, nil:
                     EmptyView()
@@ -161,15 +177,33 @@ struct NotificationEditView: View {
         }
     }
 
-    /// 「完了するまで繰り返す」のトグルと、催促の間隔・日の区切り（毎日）・週の始まり（曜日）
+    /// 毎月の通知の警告と注意書き。29〜31 日はその日が無い月は鳴らない（Q3）。月末は 3 か月先までしか登録しない（Q4）
+    @ViewBuilder
+    private var monthlyNotes: some View {
+        if draft.schedule.hasDaysMissingInSomeMonths {
+            Label("29〜31 日は、その日が無い月には鳴りません", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+        }
+        if draft.schedule.monthEndOffset != nil {
+            Label(
+                "月末の通知は 3 か月先の分まで登録し、アプリを開くたびに足します。3 か月アプリを開かないと、通知が止まります",
+                systemImage: "info.circle"
+            )
+        }
+    }
+
+    /// 「完了するまで繰り返す」のトグルと、催促の間隔・日の区切り（毎日）・週の始まり（曜日）。毎月は月の初めで区切るので欄を出さない
     private var untilDoneSection: some View {
         Section {
             Toggle("完了するまで繰り返す", isOn: $draft.repeatsUntilDone)
                 .accessibilityIdentifier("repeatsUntilDoneToggle")
                 .onChange(of: draft.repeatsUntilDone) { _, isOn in
-                    // 催促を始める曜日は 1 つ。複数選んでいたら、週の中で最初の曜日だけ残す
+                    // 催促を始める曜日・日は 1 つ。複数選んでいたら、週の中で最初の曜日・最も早い日付だけ残す
                     if isOn, draft.schedule.weekdays.count > 1, let first = firstWeekdayOfWeek(in: draft.schedule.weekdays) {
                         draft.schedule.weekdays = [first]
+                    }
+                    if isOn, draft.schedule.monthlyDayCount > 1 {
+                        draft.schedule.keepFirstMonthlyDay()
                     }
                 }
             if draft.repeatsUntilDone {
@@ -190,7 +224,7 @@ struct NotificationEditView: View {
                     }
                     timeOfDayPicker("週の始まりの時刻", time: $draft.untilDoneRule.weekStart.time)
                         .accessibilityIdentifier("weekStartTimePicker")
-                case .once:
+                case .once, .monthly:
                     EmptyView()
                 }
             }
@@ -201,7 +235,9 @@ struct NotificationEditView: View {
                 switch draft.schedule.repeatRule {
                 case .weekdays:
                     Text("選んだ曜日の時刻から 0 時まで催促し、完了しなければ週の終わりまで毎日催促します。完了すると次の週まで鳴りません")
-                default:
+                case .monthly:
+                    Text("選んだ日の時刻から 0 時まで催促し、完了しなければ月の終わりまで毎日催促します。完了すると次の月まで鳴りません")
+                case .daily, .once:
                     Text("時刻から 0 時まで催促します。完了するとその日は鳴りません。日の区切りより前の完了は前の日の完了になります")
                 }
             } else {
