@@ -7,7 +7,7 @@ import Foundation
 
 /// 時刻指定の通知をいつ鳴らすか。`NotificationSetting` の時刻指定の項目を、隔離境界を越えて渡せる形にまとめたもの
 nonisolated struct TimeOfDaySchedule: Equatable, Sendable {
-    /// 毎日・曜日の通知を鳴らす時刻
+    /// 毎日・曜日・毎月の通知を鳴らす時刻
     var time: TimeOfDay
     /// 繰り返し方
     var repeatRule: NotificationRepeat
