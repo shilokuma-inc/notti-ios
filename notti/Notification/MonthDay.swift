@@ -10,6 +10,9 @@ nonisolated enum MonthDay {
     /// 選べる日付。その日が無い月（31 日を選んで 30 日の月など）は鳴らさない
     static let range = 1...31
 
+    /// 無い月がある日付（2 月は 28 日まで、30 日の月もある）
+    static let daysMissingInSomeMonths = 29...31
+
     /// 月末の何日前まで選べるか（0 = 月末の当日）
     static let monthEndOffsetRange = 0...7
 
