@@ -189,4 +189,17 @@ struct LinkURLSaveTests {
         #expect(setting.startDate == now)
         #expect(center.removedIdentifiers.count > removedBefore)
     }
+
+    @Test
+    func savingIntervalKeepsLink() async throws {
+        let context = container.mainContext
+        let setting = NotificationSetting(message: "残高", startDate: now.addingTimeInterval(-600), linkURL: "https://example.com")
+        context.insert(setting)
+        await actions.sync(setting)
+
+        await actions.save(message: "残高", interval: .twentyFourHours, to: setting, in: context, now: now).task.value
+
+        #expect(setting.interval == .twentyFourHours)
+        #expect(setting.linkURL == "https://example.com")
+    }
 }
