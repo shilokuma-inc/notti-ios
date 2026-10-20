@@ -95,3 +95,98 @@ struct NotificationSettingSaveTests {
         #expect(center.pending.isEmpty)
     }
 }
+
+/// 開くアプリの URL の保存（タスク: 通知の設定に開くアプリの URL を保存する項目を足す）
+@MainActor
+struct LinkURLSaveTests {
+    private let center = FakeNotificationCenter()
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+    private let container: ModelContainer
+
+    private var actions: NotificationSettingActions {
+        NotificationSettingActions(scheduler: NotificationScheduler.fake(center))
+    }
+
+    init() throws {
+        container = try NottiModelContainer.make(inMemory: true)
+    }
+
+    @Test
+    func addingSavesTrimmedLink() async throws {
+        let context = container.mainContext
+        let draft = NotificationDraft(message: "残高", linkURL: "  https://example.com\n")
+
+        let result = actions.save(draft, to: nil, in: context, now: now)
+        await result.task.value
+
+        let setting = try #require(try context.fetch(FetchDescriptor<NotificationSetting>()).first)
+        #expect(setting.linkURL == "https://example.com")
+        #expect(center.pending[setting.id.uuidString] != nil)
+    }
+
+    @Test
+    func blankLinkIsSavedAsNoLink() async throws {
+        let context = container.mainContext
+        let draft = NotificationDraft(message: "残高", linkURL: " ")
+
+        let result = actions.save(draft, to: nil, in: context, now: now)
+        await result.task.value
+
+        #expect(result.setting.linkURL == nil)
+    }
+
+    @Test
+    func changingOnlyLinkKeepsStartDateAndDoesNotReschedule() async throws {
+        let context = container.mainContext
+        let start = now.addingTimeInterval(-600)
+        let setting = NotificationSetting(message: "残高", startDate: start, linkURL: "https://example.com")
+        context.insert(setting)
+        await actions.sync(setting)
+        let removedBefore = center.removedIdentifiers.count
+        var draft = setting.draft
+        draft.linkURL = " examplebank:// "
+
+        await actions.save(draft, to: setting, in: context, now: now).task.value
+
+        #expect(setting.linkURL == "examplebank://")
+        #expect(setting.startDate == start)
+        #expect(center.removedIdentifiers.count == removedBefore)
+        #expect(center.pending.count == 1)
+        #expect(!context.hasChanges)
+    }
+
+    @Test
+    func addingLinkReschedulesAndResetsStartDate() async throws {
+        let context = container.mainContext
+        let setting = NotificationSetting(message: "残高", startDate: now.addingTimeInterval(-600))
+        context.insert(setting)
+        await actions.sync(setting)
+        let removedBefore = center.removedIdentifiers.count
+        var draft = setting.draft
+        draft.linkURL = "https://example.com"
+
+        await actions.save(draft, to: setting, in: context, now: now).task.value
+
+        #expect(setting.linkURL == "https://example.com")
+        #expect(setting.startDate == now)
+        #expect(center.removedIdentifiers.count > removedBefore)
+        #expect(center.pending[setting.id.uuidString] != nil)
+    }
+
+    @Test
+    func removingLinkReschedules() async throws {
+        let context = container.mainContext
+        let setting = NotificationSetting(message: "残高", startDate: now.addingTimeInterval(-600), linkURL: "https://example.com")
+        context.insert(setting)
+        await actions.sync(setting)
+        let removedBefore = center.removedIdentifiers.count
+        var draft = setting.draft
+        draft.linkURL = ""
+
+        await actions.save(draft, to: setting, in: context, now: now).task.value
+
+        #expect(setting.linkURL == nil)
+        #expect(setting.startDate == now)
+        #expect(center.removedIdentifiers.count > removedBefore)
+    }
+}
