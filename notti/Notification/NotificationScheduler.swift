@@ -11,7 +11,7 @@ import UserNotifications
 /// identifier は設定の ID（`<id>`）を元にする。1 件の設定から複数の通知を作るときは `<id>-<接尾辞>` にし、`remove(id:)` でまとめて消す。
 /// - 間隔（おやすみ時間なし）: `<id>`
 /// - 間隔（おやすみ時間あり）: `<id>-<hour>`（hour は 0〜23）
-/// - 時刻指定: 毎日 `<id>-daily` / 曜日 `<id>-weekday<1〜7>` / 1 回だけ `<id>-once`
+/// - 時刻指定: 毎日 `<id>-daily` / 曜日 `<id>-weekday<1〜7>` / 1 回だけ `<id>-once` / 毎月の日付 `<id>-monthday<1〜31>`
 /// - 完了するまで繰り返す催促: `<id>-nag<yyyyMMddHHmm>`（鳴らす日時ごと。日付を指定した 1 回きり）
 /// - スヌーズ: `<id>-snooze`（通知のアクションから予約する。設定の登録し直しでは消さない）
 nonisolated struct NotificationScheduler: Sendable {
@@ -87,7 +87,7 @@ nonisolated struct NotificationScheduler: Sendable {
         return plan
     }
 
-    /// `message` を `schedule` の時刻に通知する（毎日・曜日・1 回だけ）。登録済みの同じ `id` の通知は置き換える
+    /// `message` を `schedule` の時刻に通知する（毎日・曜日・1 回だけ・毎月）。登録済みの同じ `id` の通知は置き換える
     ///
     /// 1 回だけの日時が過ぎていれば、登録済みの通知を消すだけで何も登録しない
     ///
@@ -214,6 +214,8 @@ nonisolated struct NotificationScheduler: Sendable {
             "\(identifier(for: id))-weekday\(weekday.rawValue)"
         case .once:
             "\(identifier(for: id))-once"
+        case let .monthDay(day, _):
+            "\(identifier(for: id))-monthday\(day)"
         }
     }
 
