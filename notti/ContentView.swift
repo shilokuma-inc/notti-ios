@@ -95,7 +95,7 @@ struct ContentView: View {
                     .linkOpenFailureAlert()
             }
             .linkOpenFailureAlert()
-            .linkReturnCheck(settings: settings)
+            .linkReturnCheck(settings: settings, isPresentingSheet: isAdding || editingSetting != nil || isEditingQuietHours)
             .task {
                 authorization = await authorizer.authorization()
             }
