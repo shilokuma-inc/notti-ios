@@ -56,6 +56,8 @@ extension NotificationSetting {
             let year = components.year == calendar.component(.year, from: now) ? "" : "\(components.year ?? 0)年"
             let time = Self.label(of: TimeOfDay(hour: components.hour ?? 0, minute: components.minute ?? 0))
             return "\(year)\(components.month ?? 0)月\(components.day ?? 0)日 \(time) に 1 回"
+        case .monthly:
+            return "毎月 \(time)"
         }
     }
 

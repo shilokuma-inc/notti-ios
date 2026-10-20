@@ -12,12 +12,13 @@ nonisolated enum CompletionCycle: Sendable {
     /// 週ごと（繰り返しが曜日）。週の始まりで期間が変わる
     case weekly
 
-    /// 繰り返し方に対応する完了の単位。1 回だけの通知は完了するまで繰り返さないので nil
+    /// 繰り返し方に対応する完了の単位。1 回だけの通知は完了するまで繰り返さないので nil。
+    /// 毎月の通知もまだ完了するまで繰り返さないので nil
     init?(_ repeatRule: NotificationRepeat) {
         switch repeatRule {
         case .daily: self = .daily
         case .weekdays: self = .weekly
-        case .once: return nil
+        case .once, .monthly: return nil
         }
     }
 }

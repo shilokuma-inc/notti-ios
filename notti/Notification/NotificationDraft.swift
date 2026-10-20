@@ -43,6 +43,8 @@ extension NotificationSetting {
         repeatRule = draft.schedule.repeatRule
         weekdays = draft.schedule.weekdays
         onceDate = draft.schedule.onceDate
+        monthDays = draft.schedule.monthDays
+        monthEndOffset = draft.schedule.monthEndOffset
         repeatsUntilDone = draft.repeatsUntilDone
         untilDoneRule = draft.untilDoneRule
     }
@@ -57,13 +59,23 @@ extension NotificationDraft {
         case noWeekday
         /// 1 回だけの日時が無いか、過ぎている
         case pastOnceDate
+        /// 毎月繰り返すのに、日付も月末も選んでいない
+        case noMonthDay
         /// 完了するまで繰り返す毎週の通知で、曜日を 2 つ以上選んでいる（催促を始める曜日は 1 つ）
         case multipleWeekdaysUntilDone
     }
 
     /// 完了するまで繰り返す設定が効く（時刻指定で、繰り返しが毎日・曜日）
     var isUntilDoneAvailable: Bool {
-        kind == .timeOfDay && schedule.repeatRule != .once
+        guard kind == .timeOfDay else {
+            return false
+        }
+        switch schedule.repeatRule {
+        case .daily, .weekdays:
+            return true
+        case .once, .monthly:
+            return false
+        }
     }
 
     /// 保存できない理由。保存できるなら nil
@@ -87,6 +99,8 @@ extension NotificationDraft {
         case .once:
             let trigger = schedule.onceDate.flatMap { TimeOfDayTrigger.once(at: $0, now: now, calendar: calendar) }
             return trigger == nil ? .pastOnceDate : nil
+        case .monthly:
+            return schedule.monthDays.isEmpty && schedule.monthEndOffset == nil ? .noMonthDay : nil
         }
     }
 }

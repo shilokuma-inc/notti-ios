@@ -15,4 +15,8 @@ nonisolated struct TimeOfDaySchedule: Equatable, Sendable {
     var weekdays: Set<Weekday> = []
     /// 繰り返しが 1 回だけのときに鳴らす日時
     var onceDate: Date?
+    /// 繰り返しが毎月のときに鳴らす日付（1〜31 日）
+    var monthDays: Set<Int> = []
+    /// 繰り返しが毎月のときに、月末の何日前に鳴らすか（0 = 月末の当日）。月末に鳴らさないなら nil
+    var monthEndOffset: Int?
 }

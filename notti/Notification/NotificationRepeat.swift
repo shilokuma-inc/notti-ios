@@ -13,6 +13,8 @@ nonisolated enum NotificationRepeat: String, CaseIterable, Codable, Identifiable
     case weekdays
     /// 指定した日時に 1 回だけ鳴らす
     case once
+    /// 毎月、選んだ日付・月末（N 日前）の同じ時刻に鳴らす
+    case monthly
 
     var id: String {
         rawValue
@@ -24,6 +26,10 @@ nonisolated enum NotificationRepeat: String, CaseIterable, Codable, Identifiable
         case .daily: "毎日"
         case .weekdays: "曜日を選ぶ"
         case .once: "1 回だけ"
+        case .monthly: "毎月"
         }
     }
+
+    /// 追加・編集画面の「繰り返し」に出す選択肢。毎月は登録の仕組みが揃うまで出さない
+    static let selectableCases: [Self] = [.daily, .weekdays, .once]
 }

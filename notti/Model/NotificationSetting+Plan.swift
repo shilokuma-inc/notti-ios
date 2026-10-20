@@ -8,7 +8,14 @@ import Foundation
 extension NotificationSetting {
     /// 時刻指定の通知をいつ鳴らすか
     var timeOfDaySchedule: TimeOfDaySchedule {
-        TimeOfDaySchedule(time: timeOfDay, repeatRule: repeatRule, weekdays: weekdays, onceDate: onceDate)
+        TimeOfDaySchedule(
+            time: timeOfDay,
+            repeatRule: repeatRule,
+            weekdays: weekdays,
+            onceDate: onceDate,
+            monthDays: monthDays,
+            monthEndOffset: monthEndOffset
+        )
     }
 
     /// `quietHours` のもとで登録するトリガー。時刻指定の通知はおやすみ時間を適用しない
