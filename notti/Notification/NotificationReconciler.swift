@@ -16,7 +16,8 @@ struct NotificationReconciler {
 
     let scheduler: NotificationScheduler
 
-    /// - ON の設定で、未登録か内容（文言・トリガー）が食い違うもの → 登録し直す
+    /// - ON の設定で、未登録か内容（文言・トリガー・カテゴリ）が食い違うもの → 登録し直す
+    ///   （紐づけたアプリを足した・外したときは、「アプリを開く」のアクションの有無でカテゴリが変わる）
     ///   （おやすみ時間が無く登録時刻から数え直しになる場合は、起点日時も登録し直した時刻にする）
     /// - ON の設定で、内容が一致するもの → そのまま（登録し直すと起点から数え直しになるため）
     /// - それ以外の登録済みの通知（OFF の設定・削除済みの設定・おやすみ時間の変更で不要になった時刻のもの・
@@ -45,7 +46,12 @@ struct NotificationReconciler {
         var needsSave = false
         for setting in settings where setting.isEnabled {
             let plan = scheduler.plan(for: setting, now: now)
-            let expected = NotificationScheduler.expectedNotifications(id: setting.id, message: setting.message, plan: plan)
+            let expected = NotificationScheduler.expectedNotifications(
+                id: setting.id,
+                message: setting.message,
+                plan: plan,
+                hasLink: setting.hasLink
+            )
             expectedIdentifiers.formUnion(expected.keys)
             let identifier = NotificationScheduler.identifier(for: setting.id)
             let actual = pending.filter { key, _ in
