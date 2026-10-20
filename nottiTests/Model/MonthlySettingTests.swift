@@ -125,9 +125,12 @@ struct MonthlySettingTests {
         var draft = NotificationDraft(message: "家賃", kind: .timeOfDay)
         draft.schedule.repeatRule = .monthly
         #expect(!draft.isUntilDoneAvailable)
+    }
 
-        #expect(CompletionCycle(.monthly) == nil)
+    @Test
+    func monthlyRepeatsUntilDoneByMonth() {
+        #expect(CompletionCycle(.monthly) == .monthly)
         let setting = NotificationSetting(message: "家賃", kind: .timeOfDay, repeatRule: .monthly, monthDays: [10], repeatsUntilDone: true)
-        #expect(setting.completionCycle == nil)
+        #expect(setting.completionCycle == .monthly)
     }
 }

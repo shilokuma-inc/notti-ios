@@ -65,7 +65,8 @@ extension NotificationDraft {
         case multipleWeekdaysUntilDone
     }
 
-    /// 完了するまで繰り返す設定が効く（時刻指定で、繰り返しが毎日・曜日）
+    /// 完了するまで繰り返す設定が効く（時刻指定で、繰り返しが毎日・曜日）。
+    /// 毎月は催促の登録はできるが、画面で設定できるようにするまで false にしておく
     var isUntilDoneAvailable: Bool {
         guard kind == .timeOfDay else {
             return false

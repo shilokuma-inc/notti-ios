@@ -126,6 +126,7 @@ struct CompletionPeriodTests {
     func cycleFollowsRepeatRule() {
         #expect(CompletionCycle(.daily) == .daily)
         #expect(CompletionCycle(.weekdays) == .weekly)
+        #expect(CompletionCycle(.monthly) == .monthly)
         #expect(CompletionCycle(.once) == nil)
     }
 

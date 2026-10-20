@@ -100,7 +100,7 @@ nonisolated struct NotificationScheduler: Sendable {
         return plan
     }
 
-    /// 「完了するまで繰り返す」通知の催促を登録する。登録済みの同じ `id` の通知（毎日・曜日のトリガーも）は置き換える
+    /// 「完了するまで繰り返す」通知の催促を登録する。登録済みの同じ `id` の通知（毎日・曜日・毎月のトリガーも）は置き換える
     ///
     /// - Returns: 登録したトリガー
     @discardableResult
