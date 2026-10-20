@@ -190,6 +190,16 @@ struct MonthlyUntilDoneTriggerPlanTests {
         )
 
         #expect(plan.requestCount == NotificationScheduler.pendingLimit)
+        // 3 日ぶんだけで上限を超えても、先の月の最初の催促は残す（今月の分は 3 日ぶんに入っているので、後ろの 11・12 月の 2 本）
+        guard case let .untilDone(components) = plan else {
+            Issue.record("催促のトリガーになるはず: \(plan)")
+            return
+        }
+        #expect(components.suffix(2).map { Self.calendar().date(from: $0) } == [
+            Self.date(2026, 11, 5, 6, 0),
+            Self.date(2026, 12, 5, 6, 0)
+        ])
+        #expect(components.first.flatMap { Self.calendar().date(from: $0) } == Self.date(2026, 10, 5, 6, 0))
     }
 
     // MARK: - 補助
