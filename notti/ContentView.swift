@@ -52,7 +52,8 @@ struct ContentView: View {
                             } else {
                                 actions.undoCompletion(setting, in: modelContext)
                             }
-                        }
+                        },
+                        onOpenLink: openLinkAction(for: setting)
                     )
                 }
                 .onDelete { offsets in
@@ -132,6 +133,18 @@ struct ContentView: View {
         }
         Task {
             authorization = await authorizer.requestIfNeeded()
+        }
+    }
+
+    /// 行の「開く」ボタンで行うこと。紐づけたアプリが無ければ nil（ボタンを出さない）
+    private func openLinkAction(for setting: NotificationSetting) -> (() -> Void)? {
+        guard let url = setting.linkDestination else {
+            return nil
+        }
+        return {
+            Task {
+                await linkOpener.open(url)
+            }
         }
     }
 
