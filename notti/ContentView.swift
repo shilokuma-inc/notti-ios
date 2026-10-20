@@ -95,6 +95,7 @@ struct ContentView: View {
                     .linkOpenFailureAlert()
             }
             .linkOpenFailureAlert()
+            .linkReturnCheck(settings: settings, isPresentingSheet: isAdding || editingSetting != nil || isEditingQuietHours)
             .task {
                 authorization = await authorizer.authorization()
             }
@@ -138,12 +139,12 @@ struct ContentView: View {
 
     /// 行の「開く」ボタンで行うこと。紐づけたアプリが無ければ nil（ボタンを出さない）
     private func openLinkAction(for setting: NotificationSetting) -> (() -> Void)? {
-        guard let url = setting.linkDestination else {
+        guard setting.hasLink else {
             return nil
         }
         return {
             Task {
-                await linkOpener.open(url)
+                await actions.openLink(of: setting, with: linkOpener, in: modelContext)
             }
         }
     }

@@ -132,13 +132,14 @@ nonisolated final class NotificationDelegate: NSObject, UNUserNotificationCenter
     }
 
     /// `id` の設定に紐づけたアプリの URL を開く。設定が見つからない・紐づけが無ければ何もしない（のっちが開くだけになる）
+    ///
+    /// 完了するまで繰り返す通知なら、開いた日時を保存し、のっちに戻ったときに済んだかを聞く
     @MainActor
     private func openLink(id: UUID) async {
-        guard let modelContainer, let linkOpener,
-              let url = fetchSetting(id: id, in: modelContainer.mainContext)?.linkDestination else {
+        guard let modelContainer, let linkOpener, let setting = fetchSetting(id: id, in: modelContainer.mainContext) else {
             return
         }
-        await linkOpener.open(url)
+        await NotificationSettingActions(scheduler: scheduler).openLink(of: setting, with: linkOpener, in: modelContainer.mainContext)
     }
 
     /// `id` の設定。見つからない・読み込めなければ nil

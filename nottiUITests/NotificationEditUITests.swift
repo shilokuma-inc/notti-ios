@@ -284,63 +284,15 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertFalse(save.isEnabled)
     }
 
-    @MainActor
-    func testRowShowsOpenLinkButtonOnlyForLinkedNotification() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-inMemoryStore"]
-        app.launch()
-
-        addNotification(message: "水を飲む", linkURL: nil, in: app)
-        addNotification(message: "残高", linkURL: "https://example.com", in: app)
-
-        // 紐づけのある行にだけ「開く」ボタンが出る
-        XCTAssertTrue(app.buttons["残高, 1 時間ごと"].waitForExistence(timeout: 15))
-        let openButtons = app.buttons.matching(identifier: "openLinkButton")
-        XCTAssertTrue(openButtons.firstMatch.waitForExistence(timeout: 15))
-        XCTAssertEqual(openButtons.count, 1)
-        XCTAssertEqual(openButtons.firstMatch.label, "アプリを開く")
-
-        // OFF にしても出る
-        let toggles = app.switches.matching(identifier: "enabledToggle")
-        XCTAssertEqual(toggles.count, 2)
-        toggles.element(boundBy: 1).switches.firstMatch.tap()
-        XCTAssertEqual(toggles.element(boundBy: 1).value as? String, "0")
-        XCTAssertTrue(openButtons.firstMatch.waitForExistence(timeout: 15))
-        XCTAssertEqual(openButtons.count, 1)
-    }
-
-    /// 追加画面で通知を 1 件保存する。`linkURL` が nil なら紐づけない
-    @MainActor
-    private func addNotification(message: String, linkURL: String?, in app: XCUIApplication) {
-        app.navigationBars["通知"].buttons["追加"].tap()
-        let field = app.descendants(matching: .any)["messageField"]
-        XCTAssertTrue(field.waitForExistence(timeout: 15))
-        field.tap()
-        field.typeText(message)
-        if let linkURL {
-            // 「アプリを開く」の節は Form の一番下にある。Form は画面外の欄を要素として持たないので、押せるまで送る
-            let linkField = app.textFields["linkURLField"]
-            for _ in 0..<3 where !(linkField.exists && linkField.isHittable) {
-                app.swipeUp()
-            }
-            XCTAssertTrue(linkField.waitForExistence(timeout: 15))
-            linkField.tap()
-            linkField.typeText(linkURL)
-        }
-        app.navigationBars["通知を追加"].buttons["保存"].tap()
-        allowNotificationsIfAsked()
-        XCTAssertTrue(app.buttons["\(message), 1 時間ごと"].waitForExistence(timeout: 15))
-    }
-
     /// ラベルに `text` を含む要素。行の文言は、編集ボタンのラベルにまとめられることも、個別の文字として出ることもある
     @MainActor
-    private func element(containing text: String, in app: XCUIApplication) -> XCUIElement {
+    func element(containing text: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
 
     /// 通知を ON にすると初回だけ出る許可ダイアログ（SpringBoard）を閉じる。2 番目のボタンが「許可」
     @MainActor
-    private func allowNotificationsIfAsked() {
+    func allowNotificationsIfAsked() {
         let alert = XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
         if alert.waitForExistence(timeout: 3) {
             alert.buttons.element(boundBy: 1).tap()

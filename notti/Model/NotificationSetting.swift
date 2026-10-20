@@ -10,7 +10,7 @@ import SwiftData
 ///
 /// 時刻指定の項目（`kindRawValue` 以降）は後から足したもの。既存の保存データを間隔の通知として読めるよう、
 /// すべて既定値を持たせて軽量マイグレーションで済ませている。「完了するまで繰り返す」の項目（`repeatsUntilDone` 以降）と、
-/// 毎月の項目（`monthDayMask` 以降）と、開くアプリの URL（`linkURL`）も同じ
+/// 毎月の項目（`monthDayMask` 以降）と、開くアプリの URL（`linkURL`・`linkOpenedAt`）も同じ
 @Model
 final class NotificationSetting {
     /// 通知の identifier の元にする安定した ID
@@ -60,6 +60,9 @@ final class NotificationSetting {
     /// 通知に紐づけて開くアプリの URL（Universal Link かカスタム URL スキーム）。nil なら紐づけなし。
     /// 前後の空白を取り除いた形で保存する（`LinkURL.normalized(_:)`）。利用者の端末にだけ置き、外部には送らない
     var linkURL: String?
+    /// 完了するまで繰り返す通知の紐づけたアプリを開いた日時。のっちに戻ったときに済んだかを聞いたら（聞かずに済ませたら）nil に戻す。
+    /// アプリが OS に終了されても聞けるよう、メモリではなく保存しておく
+    var linkOpenedAt: Date?
     /// 完了の記録。通知を削除したら一緒に消す
     @Relationship(deleteRule: .cascade, inverse: \CompletionRecord.setting)
     var completions: [CompletionRecord] = []
