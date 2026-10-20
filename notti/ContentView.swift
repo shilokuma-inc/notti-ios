@@ -27,7 +27,6 @@ struct ContentView: View {
     }
 
     var body: some View {
-        @Bindable var linkOpener = linkOpener
         NavigationStack {
             List {
                 if authorization == .denied {
@@ -84,18 +83,17 @@ struct ContentView: View {
             }
             .sheet(isPresented: $isAdding, onDismiss: requestAuthorizationIfEnabled) {
                 NotificationEditView()
+                    .linkOpenFailureAlert()
             }
             .sheet(item: $editingSetting, onDismiss: requestAuthorizationIfEnabled) { setting in
                 NotificationEditView(setting: setting)
+                    .linkOpenFailureAlert()
             }
             .sheet(isPresented: $isEditingQuietHours) {
                 QuietHoursView()
+                    .linkOpenFailureAlert()
             }
-            .alert("アプリを開けませんでした", isPresented: $linkOpener.isShowingFailure) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("紐づけた URL を確かめてください。開くアプリが入っていないと開けません")
-            }
+            .linkOpenFailureAlert()
             .task {
                 authorization = await authorizer.authorization()
             }
