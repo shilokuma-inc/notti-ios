@@ -19,6 +19,8 @@ nonisolated struct NotificationDraft: Equatable, Sendable {
     var repeatsUntilDone = false
     /// 完了するまで繰り返すときの催促の間隔・日の区切り・週の始まり
     var untilDoneRule = UntilDoneRule()
+    /// 紐づけて開くアプリの URL の入力。nil か空なら紐づけなし。保存のときに前後の空白を取り除く
+    var linkURL: String?
 }
 
 extension NotificationSetting {
@@ -30,7 +32,8 @@ extension NotificationSetting {
             interval: interval,
             schedule: timeOfDaySchedule,
             repeatsUntilDone: repeatsUntilDone,
-            untilDoneRule: untilDoneRule
+            untilDoneRule: untilDoneRule,
+            linkURL: linkURL
         )
     }
 
@@ -47,6 +50,7 @@ extension NotificationSetting {
         monthEndOffset = draft.schedule.monthEndOffset
         repeatsUntilDone = draft.repeatsUntilDone
         untilDoneRule = draft.untilDoneRule
+        linkURL = draft.linkURL
     }
 }
 
