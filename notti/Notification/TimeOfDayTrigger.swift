@@ -15,6 +15,8 @@ nonisolated enum TimeOfDayTrigger: Hashable, Sendable {
     case once(DateComponents)
     /// 毎月この日付（1〜31 日）のこの時刻に鳴らす。その日が無い月（31 日を選んで 30 日の月など）は鳴らない
     case monthDay(Int, TimeOfDay)
+    /// 毎月の月末（N 日前）の、この日時（年・月・日・時・分）に 1 回だけ鳴らす。先の月の分は整合で補充する
+    case monthEnd(DateComponents)
 
     /// `UNCalendarNotificationTrigger(dateMatching:repeats:)` に渡す日時。タイムゾーンは持たせず、端末のローカル時刻で解釈させる
     var dateComponents: DateComponents {
@@ -23,7 +25,7 @@ nonisolated enum TimeOfDayTrigger: Hashable, Sendable {
             DateComponents(hour: time.hour, minute: time.minute)
         case let .weekly(weekday, time):
             DateComponents(hour: time.hour, minute: time.minute, weekday: weekday.rawValue)
-        case let .once(components):
+        case let .once(components), let .monthEnd(components):
             components
         case let .monthDay(day, time):
             DateComponents(day: day, hour: time.hour, minute: time.minute)
@@ -46,7 +48,7 @@ nonisolated enum TimeOfDayTrigger: Hashable, Sendable {
         switch self {
         case .daily, .weekly, .monthDay:
             true
-        case .once:
+        case .once, .monthEnd:
             false
         }
     }

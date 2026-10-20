@@ -10,7 +10,7 @@ import SwiftData
 /// 保存済みの通知設定と、通知センターに登録済みの通知を突き合わせて整合させる
 ///
 /// アプリ起動時と、アプリが前面に戻ったときに呼ぶ。OS 側の登録はアプリの再インストールや別経路の変更で保存内容とずれることがあるため。
-/// 「完了するまで繰り返す」通知の催促は日付を指定した 1 回きりの通知で、先に登録した日数ぶんしか無いので、ここで補充する。
+/// 「完了するまで繰り返す」通知の催促と毎月の月末（N 日前）の通知は日付を指定した 1 回きりの通知で、先に登録した日数・月数ぶんしか無いので、ここで補充する。
 struct NotificationReconciler {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "notti", category: "Notification")
 
