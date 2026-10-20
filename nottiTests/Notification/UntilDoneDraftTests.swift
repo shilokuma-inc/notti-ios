@@ -46,13 +46,15 @@ struct UntilDoneDraftTests {
     }
 
     @Test
-    func untilDoneIsAvailableOnlyForDailyAndWeekdays() {
+    func untilDoneIsAvailableExceptOnce() {
         var draft = NotificationDraft(message: "デイリー")
         #expect(!draft.isUntilDoneAvailable)
 
         draft.kind = .timeOfDay
         #expect(draft.isUntilDoneAvailable)
         draft.schedule.repeatRule = .weekdays
+        #expect(draft.isUntilDoneAvailable)
+        draft.schedule.repeatRule = .monthly
         #expect(draft.isUntilDoneAvailable)
         draft.schedule.repeatRule = .once
         #expect(!draft.isUntilDoneAvailable)

@@ -176,6 +176,52 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertTrue(element(containing: "毎月 10・27 日 9:00", in: app).waitForExistence(timeout: 5))
     }
 
+    @MainActor
+    func testMonthlyUntilDoneSelectsOneDay() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+
+        app.navigationBars["通知"].buttons["追加"].tap()
+        XCTAssertTrue(app.buttons["時刻を指定"].waitForExistence(timeout: 5))
+        app.buttons["時刻を指定"].tap()
+        app.buttons["毎月"].tap()
+        let tenth = app.buttons["10 日"]
+        XCTAssertTrue(tenth.waitForExistence(timeout: 5))
+        tenth.tap()
+        app.buttons["27 日"].tap()
+
+        // ON にすると、最も早い日付だけ残す。日の区切り・週の始まりの欄は出さない（トグルは日付の格子の下にある）
+        app.swipeUp()
+        let toggle = app.switches["repeatsUntilDoneToggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.switches.firstMatch.tap()
+        XCTAssertTrue(tenth.isSelected)
+        XCTAssertFalse(app.buttons["27 日"].isSelected)
+        XCTAssertFalse(app.descendants(matching: .any)["dayBoundaryPicker"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["weekStartTimePicker"].exists)
+
+        // ON のうちは 1 つだけ選べる。月末を ON にすると日付を外す
+        app.buttons["15 日"].tap()
+        XCTAssertTrue(app.buttons["15 日"].isSelected)
+        XCTAssertFalse(tenth.isSelected)
+        app.switches["monthEndToggle"].switches.firstMatch.tap()
+        XCTAssertFalse(app.buttons["15 日"].isSelected)
+
+        let field = app.descendants(matching: .any)["messageField"]
+        field.tap()
+        field.typeText("締め日")
+        let save = app.navigationBars["通知を追加"].buttons["保存"]
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        allowNotificationsIfAsked()
+
+        XCTAssertTrue(element(containing: "毎月 月末 9:00・完了まで", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(element(containing: "今月はまだ完了していません", in: app).waitForExistence(timeout: 5))
+        app.buttons["完了にする"].tap()
+        XCTAssertTrue(element(containing: "今月は完了済み", in: app).waitForExistence(timeout: 5))
+    }
+
     /// ラベルに `text` を含む要素。行の文言は、編集ボタンのラベルにまとめられることも、個別の文字として出ることもある
     @MainActor
     private func element(containing text: String, in app: XCUIApplication) -> XCUIElement {
