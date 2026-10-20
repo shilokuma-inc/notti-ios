@@ -58,7 +58,10 @@ struct LinkURLSection: View {
                 .accessibilityIdentifier("linkCandidate-\(candidate.id)")
             }
         } label: {
+            // 行のどこを押しても開くよう、ラベルを行の幅いっぱいに広げる（ラベルの文字の上でしか開かないため）
             Label("候補から選ぶ", systemImage: "list.bullet")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
         }
         .accessibilityIdentifier("linkCandidateMenu")
         .accessibilityLabel("開くアプリを候補から選ぶ")
