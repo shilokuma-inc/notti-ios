@@ -10,7 +10,7 @@ import SwiftData
 ///
 /// 時刻指定の項目（`kindRawValue` 以降）は後から足したもの。既存の保存データを間隔の通知として読めるよう、
 /// すべて既定値を持たせて軽量マイグレーションで済ませている。「完了するまで繰り返す」の項目（`repeatsUntilDone` 以降）と、
-/// 毎月の項目（`monthDayMask` 以降）も同じ
+/// 毎月の項目（`monthDayMask` 以降）と、開くアプリの URL（`linkURL`）も同じ
 @Model
 final class NotificationSetting {
     /// 通知の identifier の元にする安定した ID
@@ -57,6 +57,9 @@ final class NotificationSetting {
     var repeatsOnMonthEnd: Bool = false
     /// 月末の何日前に鳴らすか（0 = 月末の当日）。`repeatsOnMonthEnd` が true のときに使う
     var monthEndOffsetDays: Int = 0
+    /// 通知に紐づけて開くアプリの URL（Universal Link かカスタム URL スキーム）。nil なら紐づけなし。
+    /// 前後の空白を取り除いた形で保存する（`LinkURL.normalized(_:)`）。利用者の端末にだけ置き、外部には送らない
+    var linkURL: String?
     /// 完了の記録。通知を削除したら一緒に消す
     @Relationship(deleteRule: .cascade, inverse: \CompletionRecord.setting)
     var completions: [CompletionRecord] = []
@@ -77,7 +80,8 @@ final class NotificationSetting {
         monthDays: Set<Int> = [],
         monthEndOffset: Int? = nil,
         repeatsUntilDone: Bool = false,
-        untilDoneRule: UntilDoneRule = UntilDoneRule()
+        untilDoneRule: UntilDoneRule = UntilDoneRule(),
+        linkURL: String? = nil
     ) {
         self.id = id
         self.message = message
@@ -101,6 +105,7 @@ final class NotificationSetting {
         self.weekStartWeekdayRawValue = untilDoneRule.weekStart.weekday.rawValue
         self.weekStartHour = untilDoneRule.weekStart.time.hour
         self.weekStartMinute = untilDoneRule.weekStart.time.minute
+        self.linkURL = linkURL
     }
 
     /// 繰り返す間隔。保存値が選択肢に無い場合は 1 時間として扱う

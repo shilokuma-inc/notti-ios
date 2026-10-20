@@ -40,6 +40,8 @@ struct NotificationSettingActions {
     /// 追加・編集画面の入力を保存し、通知を登録し直す
     ///
     /// 編集で内容（文言・種類・間隔・時刻・繰り返し）が変わった ON の通知は、保存した時刻を新しい起点にする。変更が無ければ登録し直さない。
+    /// 開くアプリの URL だけを変えた（紐づけの有無は同じ）ときは、URL を保存するだけで登録し直さず、起点も変えない
+    /// （`NotificationDraft.requiresRescheduling(from:)`）。
     ///
     /// - Parameter setting: 編集中の設定。nil なら新しく追加する（追加した通知は ON で、追加した時刻が起点になる）
     /// - Returns: 保存した設定と、通知センターへの反映
@@ -52,14 +54,20 @@ struct NotificationSettingActions {
     ) -> (setting: NotificationSetting, task: Task<Void, Never>) {
         var draft = draft
         draft.message = draft.message.trimmingCharacters(in: .whitespacesAndNewlines)
+        draft.linkURL = LinkURL.normalized(draft.linkURL)
         let target: NotificationSetting
         if let setting {
             // 間隔の通知は登録し直すと登録した時刻から数え直しになるため、変更が無ければ何もしない
             guard setting.draft != draft else {
                 return (setting, Task {})
             }
+            let requiresRescheduling = draft.requiresRescheduling(from: setting.draft)
             target = setting
             target.apply(draft)
+            guard requiresRescheduling else {
+                save(context)
+                return (target, Task {})
+            }
             if target.isEnabled {
                 target.startDate = now
             }
