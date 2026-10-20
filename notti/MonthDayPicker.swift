@@ -43,11 +43,13 @@ struct MonthDayPicker: View {
                 monthDays.insert(day)
             }
         } label: {
-            // 2 桁の日付が折り返さないよう、余白の大きい `.bordered` ではなく自前の背景にする
+            // 2 桁の日付が折り返さないよう、余白の大きい `.bordered` ではなく自前の背景にする。
+            // 選んだ日の文字は背景色（アクセントの色はダークモードで白になるため、白い文字にはしない）
             Text("\(day)")
                 .monospacedDigit()
                 .lineLimit(1)
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .minimumScaleFactor(0.5)
+                .foregroundStyle(isSelected ? Color(.systemBackground) : Color.primary)
                 .frame(maxWidth: .infinity, minHeight: 36)
                 .background(
                     isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.fill.tertiary),
