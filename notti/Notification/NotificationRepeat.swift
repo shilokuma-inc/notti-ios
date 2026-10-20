@@ -30,6 +30,6 @@ nonisolated enum NotificationRepeat: String, CaseIterable, Codable, Identifiable
         }
     }
 
-    /// 追加・編集画面の「繰り返し」に出す選択肢。毎月は登録の仕組みが揃うまで出さない
-    static let selectableCases: [Self] = [.daily, .weekdays, .once]
+    /// 追加・編集画面の「繰り返し」に出す選択肢
+    static let selectableCases: [Self] = [.daily, .weekdays, .once, .monthly]
 }

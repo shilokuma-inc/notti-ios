@@ -130,8 +130,11 @@ struct NotificationEditView: View {
             }
             .pickerStyle(.segmented)
             switch draft.schedule.repeatRule {
-            case .daily, .monthly:
+            case .daily:
                 timePicker
+            case .monthly:
+                timePicker
+                MonthDayPicker(monthDays: $draft.schedule.monthDays, monthEndOffset: $draft.schedule.monthEndOffset)
             case .weekdays:
                 timePicker
                 weekdayPicker
@@ -144,6 +147,9 @@ struct NotificationEditView: View {
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 Text("端末の時刻で通知します。おやすみ時間のあいだでも通知します")
+                if draft.schedule.repeatRule == .monthly {
+                    monthlyNotes
+                }
                 switch savingDraft.problem() {
                 case .noWeekday:
                     Label("曜日を 1 つ以上選んでください", systemImage: "exclamationmark.circle")
@@ -161,6 +167,21 @@ struct NotificationEditView: View {
                     EmptyView()
                 }
             }
+        }
+    }
+
+    /// 毎月の通知の警告と注意書き。29〜31 日はその日が無い月は鳴らない（Q3）。月末は 3 か月先までしか登録しない（Q4）
+    @ViewBuilder
+    private var monthlyNotes: some View {
+        if draft.schedule.hasDaysMissingInSomeMonths {
+            Label("29〜31 日は、その日が無い月には鳴りません", systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+        }
+        if draft.schedule.monthEndOffset != nil {
+            Label(
+                "月末の通知は 3 か月先の分まで登録し、アプリを開くたびに足します。3 か月アプリを開かないと、通知が止まります",
+                systemImage: "info.circle"
+            )
         }
     }
 

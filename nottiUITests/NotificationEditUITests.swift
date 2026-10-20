@@ -127,6 +127,55 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertTrue(element(containing: "今日はまだ完了していません", in: app).waitForExistence(timeout: 5))
     }
 
+    @MainActor
+    func testAddMonthlyNotificationOnSelectedDays() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-inMemoryStore"]
+        app.launch()
+
+        app.navigationBars["通知"].buttons["追加"].tap()
+        let field = app.descendants(matching: .any)["messageField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("家賃")
+        app.buttons["時刻を指定"].tap()
+        XCTAssertTrue(app.buttons["毎月"].waitForExistence(timeout: 5))
+        app.buttons["毎月"].tap()
+
+        // 日付も月末も選んでいないうちは保存できない
+        let save = app.navigationBars["通知を追加"].buttons["保存"]
+        XCTAssertFalse(save.isEnabled)
+        // 日付の格子の下の注意書きを画面に出す（キーボードと格子で隠れるため）
+        app.swipeUp()
+        XCTAssertTrue(element(containing: "日付か月末を 1 つ以上選んでください", in: app).waitForExistence(timeout: 5))
+
+        let tenth = app.buttons["10 日"]
+        XCTAssertTrue(tenth.waitForExistence(timeout: 5))
+        tenth.tap()
+        XCTAssertTrue(tenth.isSelected)
+        app.buttons["31 日"].tap()
+        XCTAssertTrue(element(containing: "その日が無い月には鳴りません", in: app).waitForExistence(timeout: 5))
+        app.buttons["31 日"].tap()
+        XCTAssertTrue(element(containing: "その日が無い月には鳴りません", in: app).waitForNonExistence(timeout: 5))
+        app.buttons["27 日"].tap()
+
+        // 月末を ON にすると、何日前かの欄と、3 か月で止まる旨の注意書きが出る
+        let monthEnd = app.switches["monthEndToggle"]
+        XCTAssertTrue(monthEnd.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["monthEndOffsetPicker"].exists)
+        monthEnd.switches.firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["monthEndOffsetPicker"].waitForExistence(timeout: 5))
+        XCTAssertTrue(element(containing: "3 か月アプリを開かないと", in: app).exists)
+        monthEnd.switches.firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["monthEndOffsetPicker"].waitForNonExistence(timeout: 5))
+
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        allowNotificationsIfAsked()
+
+        XCTAssertTrue(element(containing: "毎月 10・27 日 9:00", in: app).waitForExistence(timeout: 5))
+    }
+
     /// ラベルに `text` を含む要素。行の文言は、編集ボタンのラベルにまとめられることも、個別の文字として出ることもある
     @MainActor
     private func element(containing text: String, in app: XCUIApplication) -> XCUIElement {

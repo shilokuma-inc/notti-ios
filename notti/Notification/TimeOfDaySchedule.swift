@@ -19,4 +19,9 @@ nonisolated struct TimeOfDaySchedule: Equatable, Sendable {
     var monthDays: Set<Int> = []
     /// 繰り返しが毎月のときに、月末の何日前に鳴らすか（0 = 月末の当日）。月末に鳴らさないなら nil
     var monthEndOffset: Int?
+
+    /// 毎月の日付に、無い月がある日（29〜31 日）を選んでいる。その月は鳴らない
+    var hasDaysMissingInSomeMonths: Bool {
+        monthDays.contains { MonthDay.daysMissingInSomeMonths.contains($0) }
+    }
 }
