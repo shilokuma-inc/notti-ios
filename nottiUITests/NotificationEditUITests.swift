@@ -101,7 +101,14 @@ final class NotificationEditUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["dayBoundaryPicker"].waitForExistence(timeout: 5))
 
         // 曜日を選ぶと、日の区切りの代わりに週の始まりを設定する
-        app.buttons["曜日を選ぶ"].tap()
+        // トグルを ON にすると Form が送られ、繰り返しの欄がナビゲーションバーの下に隠れることがある。
+        // 隠れていても isHittable は true になるので、ナビゲーションバーより下に出るまで上に戻す
+        let weekdays = app.buttons["曜日を選ぶ"]
+        let navigationBar = app.navigationBars["通知を追加"]
+        for _ in 0..<3 where !(weekdays.exists && weekdays.frame.minY >= navigationBar.frame.maxY) {
+            app.swipeDown()
+        }
+        weekdays.tap()
         XCTAssertTrue(app.descendants(matching: .any)["weekStartTimePicker"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["dayBoundaryPicker"].exists)
 
