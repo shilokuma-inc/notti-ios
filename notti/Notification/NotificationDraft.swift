@@ -63,18 +63,20 @@ extension NotificationDraft {
         case noMonthDay
         /// 完了するまで繰り返す毎週の通知で、曜日を 2 つ以上選んでいる（催促を始める曜日は 1 つ）
         case multipleWeekdaysUntilDone
+        /// 完了するまで繰り返す毎月の通知で、日付と月末を合わせて 2 つ以上選んでいる（催促を始める日は 1 つ）
+        case multipleMonthDaysUntilDone
     }
 
-    /// 完了するまで繰り返す設定が効く（時刻指定で、繰り返しが毎日・曜日）。
+    /// 完了するまで繰り返す設定が効く（時刻指定で、繰り返しが毎日・曜日・毎月）。
     /// 毎月は催促の登録はできるが、画面で設定できるようにするまで false にしておく
     var isUntilDoneAvailable: Bool {
         guard kind == .timeOfDay else {
             return false
         }
         switch schedule.repeatRule {
-        case .daily, .weekdays:
+        case .daily, .weekdays, .monthly:
             return true
-        case .once, .monthly:
+        case .once:
             return false
         }
     }
@@ -101,8 +103,10 @@ extension NotificationDraft {
             let trigger = schedule.onceDate.flatMap { TimeOfDayTrigger.once(at: $0, now: now, calendar: calendar) }
             return trigger == nil ? .pastOnceDate : nil
         case .monthly:
-            let hasMonthDay = schedule.monthDays.contains(where: MonthDay.range.contains)
-            return !hasMonthDay && schedule.monthEndOffset == nil ? .noMonthDay : nil
+            if schedule.monthlyDayCount == 0 {
+                return .noMonthDay
+            }
+            return repeatsUntilDone && schedule.monthlyDayCount > 1 ? .multipleMonthDaysUntilDone : nil
         }
     }
 }

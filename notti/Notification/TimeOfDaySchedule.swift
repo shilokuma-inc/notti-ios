@@ -24,4 +24,18 @@ nonisolated struct TimeOfDaySchedule: Equatable, Sendable {
     var hasDaysMissingInSomeMonths: Bool {
         monthDays.contains { MonthDay.daysMissingInSomeMonths.contains($0) }
     }
+
+    /// 毎月の鳴らす日の数（1〜31 日の日付と、月末（N 日前））
+    var monthlyDayCount: Int {
+        monthDays.filter(MonthDay.range.contains).count + (monthEndOffset == nil ? 0 : 1)
+    }
+
+    /// 毎月の鳴らす日を 1 つだけにする（完了するまで繰り返すときは、催促を始める日が 1 つのため）。
+    /// 日付を選んでいれば最も早い日付を残して月末を外し、日付が無ければ月末を残す
+    mutating func keepFirstMonthlyDay() {
+        if let first = monthDays.filter(MonthDay.range.contains).min() {
+            monthDays = [first]
+            monthEndOffset = nil
+        }
+    }
 }
