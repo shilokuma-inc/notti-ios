@@ -80,11 +80,18 @@ nonisolated struct NotificationScheduler: Sendable {
     /// - おやすみ時間が無ければ、登録した時刻から `interval` ごと（14:23 に登録して 1 時間なら 15:23, 16:23…）
     /// - おやすみ時間があれば、起点の時刻から `interval` ごとの時刻のうち、おやすみ時間外の時刻に毎日鳴らす
     ///
+    /// - Parameter hasLink: 紐づけたアプリがあるか。あれば「アプリを開く」のアクションを持つカテゴリにする
     /// - Returns: 登録したトリガー
     @discardableResult
-    func schedule(id: UUID, message: String, interval: NotificationInterval, startDate: Date) async throws -> NotificationTriggerPlan {
+    func schedule(
+        id: UUID,
+        message: String,
+        interval: NotificationInterval,
+        startDate: Date,
+        hasLink: Bool = false
+    ) async throws -> NotificationTriggerPlan {
         let plan = plan(startDate: startDate, interval: interval)
-        try await register(id: id, message: message, plan: plan)
+        try await register(id: id, message: message, plan: plan, hasLink: hasLink)
         return plan
     }
 
@@ -92,16 +99,24 @@ nonisolated struct NotificationScheduler: Sendable {
     ///
     /// 1 回だけの日時が過ぎていれば、登録済みの通知を消すだけで何も登録しない
     ///
+    /// - Parameter hasLink: 紐づけたアプリがあるか。あれば「アプリを開く」のアクションを持つカテゴリにする
     /// - Returns: 登録したトリガー
     @discardableResult
-    func schedule(id: UUID, message: String, schedule: TimeOfDaySchedule, now: Date = .now) async throws -> NotificationTriggerPlan {
+    func schedule(
+        id: UUID,
+        message: String,
+        schedule: TimeOfDaySchedule,
+        now: Date = .now,
+        hasLink: Bool = false
+    ) async throws -> NotificationTriggerPlan {
         let plan = plan(schedule: schedule, now: now)
-        try await register(id: id, message: message, plan: plan)
+        try await register(id: id, message: message, plan: plan, hasLink: hasLink)
         return plan
     }
 
     /// 「完了するまで繰り返す」通知の催促を登録する。登録済みの同じ `id` の通知（毎日・曜日・毎月のトリガーも）は置き換える
     ///
+    /// - Parameter hasLink: 紐づけたアプリがあるか。あれば「アプリを開く」のアクションを持つカテゴリにする
     /// - Returns: 登録したトリガー
     @discardableResult
     func schedule(
@@ -110,18 +125,20 @@ nonisolated struct NotificationScheduler: Sendable {
         schedule: TimeOfDaySchedule,
         rule: UntilDoneRule,
         completedPeriodStarts: [Date],
-        now: Date = .now
+        now: Date = .now,
+        hasLink: Bool = false
     ) async throws -> NotificationTriggerPlan {
         let plan = plan(schedule: schedule, rule: rule, completedPeriodStarts: completedPeriodStarts, now: now)
-        try await register(id: id, message: message, plan: plan)
+        try await register(id: id, message: message, plan: plan, hasLink: hasLink)
         return plan
     }
 
     /// 登録済みの同じ `id` の通知を消してから、`plan` どおりに登録する。スヌーズで予約した通知は残す
-    private func register(id: UUID, message: String, plan: NotificationTriggerPlan) async throws {
+    private func register(id: UUID, message: String, plan: NotificationTriggerPlan, hasLink: Bool) async throws {
         await remove(id: id, keepingSnooze: true)
 
-        let content = Self.content(id: id, message: message, categoryIdentifier: Self.categoryIdentifier(for: plan))
+        let category = Self.categoryIdentifier(for: plan, hasLink: hasLink)
+        let content = Self.content(id: id, message: message, categoryIdentifier: category)
         switch plan {
         case let .repeatingInterval(timeInterval):
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: timeInterval, repeats: true)
@@ -244,13 +261,28 @@ nonisolated struct NotificationScheduler: Sendable {
     }
 
     /// `plan` どおりに登録したときの通知（identifier → 内容）。登録済みの通知と食い違っていないかを調べるのに使う
-    static func expectedNotifications(id: UUID, message: String, plan: NotificationTriggerPlan) -> [String: PendingNotification] {
+    ///
+    /// - Parameter hasLink: 紐づけたアプリがあるか。カテゴリ（「アプリを開く」のアクションの有無）も突き合わせる
+    static func expectedNotifications(
+        id: UUID,
+        message: String,
+        plan: NotificationTriggerPlan,
+        hasLink: Bool = false
+    ) -> [String: PendingNotification] {
+        let category = categoryIdentifier(for: plan, hasLink: hasLink)
         switch plan {
         case let .repeatingInterval(timeInterval):
-            return [identifier(for: id): PendingNotification(body: message, timeInterval: timeInterval, repeats: true)]
+            let notification = PendingNotification(body: message, timeInterval: timeInterval, repeats: true, categoryIdentifier: category)
+            return [identifier(for: id): notification]
         case let .dailyTimes(times):
             return Dictionary(uniqueKeysWithValues: times.map { time in
-                let notification = PendingNotification(body: message, hour: time.hour, minute: time.minute, repeats: true)
+                let notification = PendingNotification(
+                    body: message,
+                    hour: time.hour,
+                    minute: time.minute,
+                    repeats: true,
+                    categoryIdentifier: category
+                )
                 return (identifier(for: id, hour: time.hour), notification)
             })
         case let .timeOfDay(triggers):
@@ -264,7 +296,8 @@ nonisolated struct NotificationScheduler: Sendable {
                     year: components.year,
                     month: components.month,
                     day: components.day,
-                    repeats: trigger.repeats
+                    repeats: trigger.repeats,
+                    categoryIdentifier: category
                 )
                 return (identifier(for: id, trigger: trigger), notification)
             })
@@ -278,7 +311,7 @@ nonisolated struct NotificationScheduler: Sendable {
                     month: components.month,
                     day: components.day,
                     repeats: false,
-                    categoryIdentifier: untilDoneCategoryIdentifier
+                    categoryIdentifier: category
                 )
                 return (identifier(for: id, nagAt: components), notification)
             }) { first, _ in first }
@@ -297,28 +330,49 @@ nonisolated extension NotificationScheduler {
     static let snoozeActionIdentifier = "notti.snooze"
     /// 完了のアクション。アプリを開かずに、通知が届いた期間を完了にする
     static let completeActionIdentifier = "notti.complete"
+    /// 紐づけたアプリのある通知に付けるカテゴリ。「アプリを開く」とスヌーズのアクションを持つ
+    static let linkCategoryIdentifier = "notti.reminder.link"
+    /// 紐づけたアプリのある「完了するまで繰り返す」通知の催促に付けるカテゴリ。完了・「アプリを開く」・スヌーズのアクションを持つ
+    static let untilDoneLinkCategoryIdentifier = "notti.untilDone.link"
+    /// 紐づけたアプリを開くアクション。通知から直接ほかのアプリは開けないので、いったんのっちを前面に出してから開く（`.foreground`）
+    static let openLinkActionIdentifier = "notti.openLink"
     /// スヌーズしてから、もう一度鳴らすまでの時間（10 分）
     static let snoozeInterval: TimeInterval = 600
     /// 通知の userInfo に入れる設定の ID のキー。スヌーズの identifier を作るのに使う
     static let settingIDKey = "settingID"
 
     /// 通知のカテゴリ。ふだんの通知のアクションは「10 分後にもう一度」の 1 つ。
-    /// 「完了するまで繰り返す」通知の催促は「完了」と「10 分後にもう一度」。「完了」は `.foreground` を付けず、アプリを開かずに保存する
+    /// 「完了するまで繰り返す」通知の催促は「完了」と「10 分後にもう一度」。「完了」は `.foreground` を付けず、アプリを開かずに保存する。
+    /// 紐づけたアプリのある通知は、それぞれ「アプリを開く」を足したカテゴリにする（「アプリを開く」は `.foreground`）
     static var categories: Set<UNNotificationCategory> {
         let snooze = UNNotificationAction(identifier: snoozeActionIdentifier, title: "10 分後にもう一度")
         let complete = UNNotificationAction(identifier: completeActionIdentifier, title: "完了")
+        let openLink = UNNotificationAction(identifier: openLinkActionIdentifier, title: "アプリを開く", options: [.foreground])
         return [
             UNNotificationCategory(identifier: categoryIdentifier, actions: [snooze], intentIdentifiers: []),
-            UNNotificationCategory(identifier: untilDoneCategoryIdentifier, actions: [complete, snooze], intentIdentifiers: [])
+            UNNotificationCategory(identifier: untilDoneCategoryIdentifier, actions: [complete, snooze], intentIdentifiers: []),
+            UNNotificationCategory(identifier: linkCategoryIdentifier, actions: [openLink, snooze], intentIdentifiers: []),
+            UNNotificationCategory(
+                identifier: untilDoneLinkCategoryIdentifier,
+                actions: [complete, openLink, snooze],
+                intentIdentifiers: []
+            )
         ]
     }
 
     /// `plan` どおりに登録する通知に付けるカテゴリ
-    static func categoryIdentifier(for plan: NotificationTriggerPlan) -> String {
-        if case .untilDone = plan {
+    ///
+    /// - Parameter hasLink: 紐づけたアプリがあるか。あれば「アプリを開く」のアクションを持つカテゴリにする
+    static func categoryIdentifier(for plan: NotificationTriggerPlan, hasLink: Bool = false) -> String {
+        switch (plan, hasLink) {
+        case (.untilDone, false):
             untilDoneCategoryIdentifier
-        } else {
+        case (.untilDone, true):
+            untilDoneLinkCategoryIdentifier
+        case (.repeatingInterval, false), (.dailyTimes, false), (.timeOfDay, false):
             categoryIdentifier
+        case (.repeatingInterval, true), (.dailyTimes, true), (.timeOfDay, true):
+            linkCategoryIdentifier
         }
     }
 
@@ -330,6 +384,7 @@ nonisolated extension NotificationScheduler {
     /// `id` の通知を `interval` 後にもう一度鳴らす。スヌーズで予約済みの通知は置き換える
     ///
     /// - Parameter categoryIdentifier: スヌーズした通知のカテゴリ。催促をスヌーズしたら、もう一度鳴らす通知からも完了できるようにする
+    ///   （紐づけたアプリのある通知なら、もう一度鳴らす通知からもアプリを開けるようにする）
     func snooze(
         id: UUID,
         message: String,
