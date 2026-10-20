@@ -79,6 +79,7 @@ struct NotificationEditView: View {
                         untilDoneSection
                     }
                 }
+                LinkURLSection(linkURL: $draft.linkURL)
             }
             .navigationTitle(setting == nil ? "通知を追加" : "通知を編集")
             .navigationBarTitleDisplayMode(.inline)
