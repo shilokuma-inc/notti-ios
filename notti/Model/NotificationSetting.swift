@@ -27,9 +27,9 @@ final class NotificationSetting {
     var createdAt: Date
     /// 通知の種類（`NotificationKind` の raw 値）
     var kindRawValue: String = NotificationKind.interval.rawValue
-    /// 鳴らす時刻の時（0〜23）。種類が時刻指定で、繰り返しが毎日・曜日のときに使う
+    /// 鳴らす時刻の時（0〜23）。種類が時刻指定で、繰り返しが毎日・曜日・毎月のときに使う
     var hour: Int = 9
-    /// 鳴らす時刻の分（0〜59）。種類が時刻指定で、繰り返しが毎日・曜日のときに使う
+    /// 鳴らす時刻の分（0〜59）。種類が時刻指定で、繰り返しが毎日・曜日・毎月のときに使う
     var minute: Int = 0
     /// 時刻指定の繰り返し方（`NotificationRepeat` の raw 値）
     var repeatRawValue: String = NotificationRepeat.daily.rawValue
@@ -37,7 +37,7 @@ final class NotificationSetting {
     var weekdayMask: Int = 0
     /// 繰り返しが 1 回だけのときに鳴らす日時
     var onceDate: Date?
-    /// 完了するまで繰り返すかどうか。種類が時刻指定で、繰り返しが毎日・曜日のときに使う
+    /// 完了するまで繰り返すかどうか。種類が時刻指定で、繰り返しが毎日・曜日・毎月のときに使う
     var repeatsUntilDone: Bool = false
     /// 完了するまで催促する間隔（分）。`NagInterval` の raw 値
     var nagIntervalMinutes: Int = NagInterval.default.rawValue
@@ -149,7 +149,7 @@ final class NotificationSetting {
         }
     }
 
-    /// 毎日・曜日の通知を鳴らす時刻
+    /// 毎日・曜日・毎月の通知を鳴らす時刻
     var timeOfDay: TimeOfDay {
         get { TimeOfDay(hour: hour, minute: minute) }
         set {

@@ -47,11 +47,13 @@ struct MonthDayTriggerTests {
     }
 
     @Test
-    func noDaysAndMonthEndOnlyRegisterNoMonthDayTriggers() {
+    func noDaysRegisterNoMonthDayTriggers() {
         #expect(Self.plan(days: []) == .timeOfDay([]))
-        // 月末（N 日前）の登録はまだ無い
-        #expect(Self.plan(days: [], monthEndOffset: 0) == .timeOfDay([]))
-        #expect(Self.plan(days: [10], monthEndOffset: 3) == .timeOfDay([.monthDay(10, Self.nine)]))
+    }
+
+    @Test
+    func outOfRangeDaysAreIgnored() {
+        #expect(Self.plan(days: [0, 10, 32]) == .timeOfDay([.monthDay(10, Self.nine)]))
     }
 
     // MARK: - identifier と登録
