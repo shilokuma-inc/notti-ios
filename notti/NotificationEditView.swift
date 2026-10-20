@@ -170,7 +170,7 @@ struct NotificationEditView: View {
                 case .multipleMonthDaysUntilDone:
                     Label("完了するまで繰り返すときは、日付か月末を 1 つだけ選んでください", systemImage: "exclamationmark.circle")
                         .foregroundStyle(.orange)
-                case .emptyMessage, nil:
+                case .emptyMessage, .unreadableLinkURL, .unsupportedLinkScheme, nil:
                     EmptyView()
                 }
             }
