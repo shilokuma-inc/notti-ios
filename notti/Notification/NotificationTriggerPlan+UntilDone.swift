@@ -79,7 +79,6 @@ nonisolated extension NotificationTriggerPlan {
         guard cycle == .monthly else {
             return dates
         }
-        let known = Set(dates)
         let firsts = monthlyFirstNagDates(
             schedule: schedule,
             completedPeriodStarts: completedPeriodStarts,
@@ -87,11 +86,13 @@ nonisolated extension NotificationTriggerPlan {
             calendar: calendar,
             months: months
         )
-        let extra = firsts.filter { !known.contains($0) }
-        // `make` が上限（`NotificationScheduler.pendingLimit`）で切っても先の月の最初の催促が落ちないよう、その分の枠を先に取る
-        // （5 日 9:00 から 30 分ごとなら 3 日ぶんだけで 90 件になる）
-        let limit = max(NotificationScheduler.pendingLimit - extra.count, 0)
-        return (dates.prefix(limit) + extra).sorted()
+        // `make` が上限（`NotificationScheduler.pendingLimit`）で切っても各月の最初の催促が落ちないよう、その分の枠を先に取り、
+        // 残りの枠を 3 日ぶんの早い順で埋める（5 日 9:00 から 30 分ごとなら 3 日ぶんだけで 90 件になる。
+        // 3 日ぶんの中にある来月の最初の催促も、3 日ぶんの後ろと一緒に削らない）
+        let reserved = Set(firsts)
+        let others = dates.filter { !reserved.contains($0) }
+        let limit = max(NotificationScheduler.pendingLimit - reserved.count, 0)
+        return (others.prefix(limit) + reserved).sorted()
     }
 
     /// 催促を始める曜日・日付を選んでいるか（毎週なら曜日、毎月なら日付か月末。毎日は常に true）
