@@ -21,8 +21,9 @@ struct MonthlySettingTests {
     }
 
     @Test
-    func monthlyIsNotSelectableYet() {
-        #expect(NotificationRepeat.selectableCases == [.daily, .weekdays, .once])
+    func monthlyIsSelectableLast() {
+        #expect(NotificationRepeat.selectableCases == [.daily, .weekdays, .once, .monthly])
+        #expect(Set(NotificationRepeat.selectableCases) == Set(NotificationRepeat.allCases))
     }
 
     @Test
@@ -68,6 +69,11 @@ struct MonthlySettingTests {
         setting.monthEndOffsetDays = -1
         #expect(setting.monthEndOffset == 0)
 
+        setting.monthEndOffset = 12
+        #expect(setting.monthEndOffsetDays == MonthDay.monthEndOffsetRange.upperBound)
+        setting.monthEndOffset = -3
+        #expect(setting.monthEndOffsetDays == 0)
+
         setting.monthEndOffset = nil
         #expect(!setting.repeatsOnMonthEnd)
         #expect(setting.monthEndOffsetDays == 0)
@@ -110,6 +116,33 @@ struct MonthlySettingTests {
         draft.schedule.monthDays = []
         draft.schedule.monthEndOffset = 0
         #expect(draft.problem(now: now, calendar: NotificationScheduler.testCalendar) == nil)
+
+        // 範囲外の日付だけでは、保存すると何も選んでいない設定になる
+        draft.schedule.monthDays = [0, 32]
+        draft.schedule.monthEndOffset = nil
+        #expect(draft.problem(now: now, calendar: NotificationScheduler.testCalendar) == .noMonthDay)
+    }
+
+    @Test
+    func daysMissingInSomeMonthsAreTwentyNineToThirtyOne() {
+        var schedule = TimeOfDaySchedule(time: TimeOfDay(hour: 9, minute: 0), repeatRule: .monthly, monthDays: [1, 28])
+        #expect(!schedule.hasDaysMissingInSomeMonths)
+
+        for day in 29...31 {
+            schedule.monthDays = [1, day]
+            #expect(schedule.hasDaysMissingInSomeMonths)
+        }
+
+        // 月末（N 日前）はどの月にもあるので警告しない
+        schedule.monthDays = []
+        schedule.monthEndOffset = 0
+        #expect(!schedule.hasDaysMissingInSomeMonths)
+    }
+
+    @Test
+    func monthEndOffsetLabels() {
+        #expect(MonthDayPicker.offsetLabel(0) == "月末の当日")
+        #expect(MonthDayPicker.offsetLabel(3) == "3 日前")
     }
 
     @Test
