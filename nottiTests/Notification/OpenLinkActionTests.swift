@@ -155,6 +155,36 @@ struct OpenLinkActionTests {
     }
 
     @Test
+    func addingLinkToDisabledSettingKeepsStartDateAndRegistersNothing() async throws {
+        let start = Self.now.addingTimeInterval(-600)
+        let setting = insert(NotificationSetting(message: "残高", isEnabled: false, startDate: start))
+        var draft = setting.draft
+        draft.linkURL = "https://example.com"
+
+        await actions.save(draft, to: setting, in: container.mainContext, now: Self.now).task.value
+
+        #expect(setting.linkURL == "https://example.com")
+        #expect(setting.startDate == start)
+        #expect(center.pending.isEmpty)
+    }
+
+    @Test
+    func changingOnlyLinkOfTimeOfDaySettingDoesNotReregister() async throws {
+        let nag = insertDailyUntilDone(linkURL: "https://example.com/old")
+        await actions.sync(nag, now: Self.now)
+        let removedBefore = center.removedIdentifiers.count
+        let pendingBefore = Set(center.pending.keys)
+        var draft = nag.draft
+        draft.linkURL = "examplebank://"
+
+        await actions.save(draft, to: nag, in: container.mainContext, now: Self.now).task.value
+
+        #expect(nag.linkURL == "examplebank://")
+        #expect(center.removedIdentifiers.count == removedBefore)
+        #expect(Set(center.pending.keys) == pendingBefore)
+    }
+
+    @Test
     func reconcileReregistersWhenLinkCategoryDiffers() async throws {
         let setting = insert(NotificationSetting(message: "残高", kind: .timeOfDay, hour: 9))
         await actions.sync(setting, now: Self.now)
