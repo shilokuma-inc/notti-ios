@@ -11,12 +11,6 @@ import UserNotifications
 
 @MainActor
 struct LinkOpenerTests {
-    private let container: ModelContainer
-
-    init() throws {
-        container = try NottiModelContainer.make(inMemory: true)
-    }
-
     // MARK: - 開く処理
 
     @Test
@@ -138,6 +132,7 @@ struct LinkCategoryCoverageTests {
         setting.linkURL = nil
         await reconciler.reconcile(in: container.mainContext, now: Self.now)
 
+        #expect(!center.pending.isEmpty)
         #expect(center.pending.values.allSatisfy { $0.content.categoryIdentifier == NotificationScheduler.untilDoneCategoryIdentifier })
     }
 

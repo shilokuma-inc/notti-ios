@@ -329,3 +329,93 @@ struct LinkURLMigrationTests {
         try context.save()
     }
 }
+
+/// 開いた日時を足す前の `NotificationSetting` と `CompletionRecord`（epic/open-linked-app のタスク 1 で足した `linkURL` まで入った形）
+enum LinkURLNotificationSchema {
+    @Model
+    final class NotificationSetting {
+        @Attribute(.unique) var id: UUID
+        var message: String
+        var intervalHours: Int
+        var isEnabled: Bool
+        var startDate: Date
+        var createdAt: Date
+        var kindRawValue: String = "interval"
+        var hour: Int = 9
+        var minute: Int = 0
+        var repeatRawValue: String = "daily"
+        var weekdayMask: Int = 0
+        var onceDate: Date?
+        var repeatsUntilDone: Bool = false
+        var nagIntervalMinutes: Int = 30
+        var dayBoundaryHour: Int = 0
+        var dayBoundaryMinute: Int = 0
+        var weekStartWeekdayRawValue: Int = 2
+        var weekStartHour: Int = 0
+        var weekStartMinute: Int = 0
+        var monthDayMask: Int = 0
+        var repeatsOnMonthEnd: Bool = false
+        var monthEndOffsetDays: Int = 0
+        var linkURL: String?
+        @Relationship(deleteRule: .cascade, inverse: \CompletionRecord.setting)
+        var completions: [CompletionRecord] = []
+
+        init(message: String, linkURL: String?) {
+            self.id = UUID()
+            self.message = message
+            self.intervalHours = 1
+            self.isEnabled = true
+            self.startDate = Date(timeIntervalSince1970: 1_800_000_000)
+            self.createdAt = Date(timeIntervalSince1970: 1_800_000_000)
+            self.kindRawValue = "timeOfDay"
+            self.hour = 21
+            self.repeatsUntilDone = true
+            self.linkURL = linkURL
+        }
+    }
+
+    @Model
+    final class CompletionRecord {
+        var periodStart: Date
+        var completedAt: Date
+        var setting: NotificationSetting?
+
+        init(periodStart: Date, completedAt: Date, setting: NotificationSetting?) {
+            self.periodStart = periodStart
+            self.completedAt = completedAt
+            self.setting = setting
+        }
+    }
+}
+
+@MainActor
+struct LinkOpenedAtMigrationTests {
+    @Test
+    func linkURLStoreIsReadWithoutOpenedAt() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appending(path: "default.store")
+        do {
+            let schema = Schema([LinkURLNotificationSchema.NotificationSetting.self, LinkURLNotificationSchema.CompletionRecord.self])
+            let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)])
+            container.mainContext.insert(LinkURLNotificationSchema.NotificationSetting(message: "紐づけあり", linkURL: "examplebank://"))
+            container.mainContext.insert(LinkURLNotificationSchema.NotificationSetting(message: "紐づけなし", linkURL: nil))
+            try container.mainContext.save()
+        }
+
+        let schema = NottiModelContainer.schema
+        let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: url)])
+        let fetched = try container.mainContext.fetch(FetchDescriptor<NotificationSetting>())
+
+        #expect(fetched.count == 2)
+        let linked = try #require(fetched.first { $0.message == "紐づけあり" })
+        let plain = try #require(fetched.first { $0.message == "紐づけなし" })
+        #expect(linked.linkURL == "examplebank://")
+        #expect(linked.repeatsUntilDone)
+        #expect(plain.linkURL == nil)
+        for setting in fetched {
+            #expect(setting.linkOpenedAt == nil)
+        }
+    }
+}
