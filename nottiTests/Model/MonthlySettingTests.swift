@@ -154,10 +154,52 @@ struct MonthlySettingTests {
     }
 
     @Test
-    func untilDoneIsNotAvailableForMonthlyYet() {
+    func untilDoneIsAvailableForMonthly() {
         var draft = NotificationDraft(message: "家賃", kind: .timeOfDay)
         draft.schedule.repeatRule = .monthly
-        #expect(!draft.isUntilDoneAvailable)
+        #expect(draft.isUntilDoneAvailable)
+    }
+
+    @Test
+    func monthlyUntilDoneNeedsExactlyOneDay() {
+        var draft = NotificationDraft(message: "家賃", kind: .timeOfDay, repeatsUntilDone: true)
+        draft.schedule.repeatRule = .monthly
+        #expect(draft.problem(now: now, calendar: NotificationScheduler.testCalendar) == .noMonthDay)
+
+        draft.schedule.monthDays = [10]
+        #expect(draft.problem(now: now, calendar: NotificationScheduler.testCalendar) == nil)
+
+        draft.schedule.monthDays = [10, 27]
+        #expect(draft.problem(now: now, calendar: NotificationScheduler.testCalendar) == .multipleMonthDaysUntilDone)
+
+        draft.schedule.monthDays = [10]
+        draft.schedule.monthEndOffset = 0
+        #expect(draft.problem(now: now, calendar: NotificationScheduler.testCalendar) == .multipleMonthDaysUntilDone)
+
+        draft.schedule.monthDays = []
+        #expect(draft.problem(now: now, calendar: NotificationScheduler.testCalendar) == nil)
+
+        // 完了するまで繰り返さなければ、いくつ選んでもよい
+        draft.repeatsUntilDone = false
+        draft.schedule.monthDays = [10, 27]
+        #expect(draft.problem(now: now, calendar: NotificationScheduler.testCalendar) == nil)
+    }
+
+    @Test
+    func keepFirstMonthlyDayLeavesEarliestDayOrMonthEnd() {
+        var schedule = TimeOfDaySchedule(time: TimeOfDay(hour: 9, minute: 0), repeatRule: .monthly, monthDays: [27, 10], monthEndOffset: 3)
+        #expect(schedule.monthlyDayCount == 3)
+
+        schedule.keepFirstMonthlyDay()
+        #expect(schedule.monthDays == [10])
+        #expect(schedule.monthEndOffset == nil)
+        #expect(schedule.monthlyDayCount == 1)
+
+        // 日付が無ければ月末を残す
+        var monthEnd = TimeOfDaySchedule(time: TimeOfDay(hour: 9, minute: 0), repeatRule: .monthly, monthEndOffset: 2)
+        monthEnd.keepFirstMonthlyDay()
+        #expect(monthEnd.monthEndOffset == 2)
+        #expect(monthEnd.monthDays.isEmpty)
     }
 
     @Test

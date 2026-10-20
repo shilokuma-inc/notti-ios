@@ -12,6 +12,8 @@ struct MonthDayPicker: View {
     @Binding var monthDays: Set<Int>
     /// 月末の何日前か（0 = 月末の当日）。月末に鳴らさないなら nil
     @Binding var monthEndOffset: Int?
+    /// 1 つだけ選ぶ（完了するまで繰り返すとき）。日付を選ぶと月末を外し、月末を ON にすると日付を外す
+    var selectsOne = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
 
@@ -39,6 +41,9 @@ struct MonthDayPicker: View {
         return Button {
             if isSelected {
                 monthDays.remove(day)
+            } else if selectsOne {
+                monthDays = [day]
+                monthEndOffset = nil
             } else {
                 monthDays.insert(day)
             }
@@ -66,7 +71,12 @@ struct MonthDayPicker: View {
     private var isMonthEndOn: Binding<Bool> {
         Binding(
             get: { monthEndOffset != nil },
-            set: { monthEndOffset = $0 ? (monthEndOffset ?? 0) : nil }
+            set: { isOn in
+                if isOn, selectsOne {
+                    monthDays = []
+                }
+                monthEndOffset = isOn ? (monthEndOffset ?? 0) : nil
+            }
         )
     }
 
