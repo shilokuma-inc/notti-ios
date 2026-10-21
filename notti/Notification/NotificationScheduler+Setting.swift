@@ -30,12 +30,21 @@ extension NotificationScheduler {
 
     /// 設定の種類に合わせて通知を登録する。登録済みの同じ設定の通知は置き換える
     ///
+    /// 紐づけたアプリのある設定は、「アプリを開く」のアクションを持つカテゴリで登録する
+    ///
     /// - Returns: 登録したトリガー
     @discardableResult
     func schedule(_ setting: NotificationSetting, now: Date = .now) async throws -> NotificationTriggerPlan {
-        switch setting.kind {
+        let hasLink = setting.hasLink
+        return switch setting.kind {
         case .interval:
-            try await schedule(id: setting.id, message: setting.message, interval: setting.interval, startDate: setting.startDate)
+            try await schedule(
+                id: setting.id,
+                message: setting.message,
+                interval: setting.interval,
+                startDate: setting.startDate,
+                hasLink: hasLink
+            )
         case .timeOfDay where setting.completionCycle != nil:
             try await schedule(
                 id: setting.id,
@@ -43,10 +52,11 @@ extension NotificationScheduler {
                 schedule: setting.timeOfDaySchedule,
                 rule: setting.untilDoneRule,
                 completedPeriodStarts: setting.completions.map(\.periodStart),
-                now: now
+                now: now,
+                hasLink: hasLink
             )
         case .timeOfDay:
-            try await schedule(id: setting.id, message: setting.message, schedule: setting.timeOfDaySchedule, now: now)
+            try await schedule(id: setting.id, message: setting.message, schedule: setting.timeOfDaySchedule, now: now, hasLink: hasLink)
         }
     }
 }

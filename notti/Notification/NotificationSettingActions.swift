@@ -40,6 +40,8 @@ struct NotificationSettingActions {
     /// 追加・編集画面の入力を保存し、通知を登録し直す
     ///
     /// 編集で内容（文言・種類・間隔・時刻・繰り返し）が変わった ON の通知は、保存した時刻を新しい起点にする。変更が無ければ登録し直さない。
+    /// 開くアプリの URL だけを変えた（紐づけの有無は同じ）ときは、URL を保存するだけで登録し直さず、起点も変えない
+    /// （`NotificationDraft.requiresRescheduling(from:)`）。
     ///
     /// - Parameter setting: 編集中の設定。nil なら新しく追加する（追加した通知は ON で、追加した時刻が起点になる）
     /// - Returns: 保存した設定と、通知センターへの反映
@@ -52,14 +54,20 @@ struct NotificationSettingActions {
     ) -> (setting: NotificationSetting, task: Task<Void, Never>) {
         var draft = draft
         draft.message = draft.message.trimmingCharacters(in: .whitespacesAndNewlines)
+        draft.linkURL = LinkURL.normalized(draft.linkURL)
         let target: NotificationSetting
         if let setting {
             // 間隔の通知は登録し直すと登録した時刻から数え直しになるため、変更が無ければ何もしない
             guard setting.draft != draft else {
                 return (setting, Task {})
             }
+            let requiresRescheduling = draft.requiresRescheduling(from: setting.draft)
             target = setting
             target.apply(draft)
+            guard requiresRescheduling else {
+                save(context)
+                return (target, Task {})
+            }
             if target.isEnabled {
                 target.startDate = now
             }
@@ -142,6 +150,51 @@ struct NotificationSettingActions {
         return enqueue {
             await sync(setting, now: now)
         }
+    }
+
+    /// 紐づけたアプリを開く（一覧のボタン・通知のアクション）。紐づけが無ければ何もしない
+    ///
+    /// 完了するまで繰り返す通知なら、開く前に開いた日時を保存しておき、のっちに戻ったときに済んだかを聞く（Q3）。
+    /// 開けなかったら、聞かないよう開いた日時を消す
+    ///
+    /// - Returns: 開けたかどうか
+    @discardableResult
+    func openLink(of setting: NotificationSetting, with opener: LinkOpener, in context: ModelContext, now: Date = .now) async -> Bool {
+        guard let url = setting.linkDestination else {
+            return false
+        }
+        let recordsOpening = setting.completionCycle != nil
+        if recordsOpening {
+            setting.linkOpenedAt = now
+            save(context)
+        }
+        let isOpened = await opener.open(url)
+        if recordsOpening && !isOpened {
+            setting.linkOpenedAt = nil
+            save(context)
+        }
+        return isOpened
+    }
+
+    /// 戻ったときに済んだかを聞き終えた（「まだ」と答えた・聞かずに済ませた）。開いた日時を消し、次に開くまで聞かない
+    func finishLinkReturn(_ setting: NotificationSetting, in context: ModelContext) {
+        guard setting.linkOpenedAt != nil else {
+            return
+        }
+        setting.linkOpenedAt = nil
+        save(context)
+    }
+
+    /// 戻ったときの確認で「完了にする」を選んだ。開いた日時を含む期間を完了にし（通知の「完了」と同じ）、開いた日時を消す
+    ///
+    /// - Returns: 通知センターへの反映
+    @discardableResult
+    func completeLinkReturn(_ setting: NotificationSetting, in context: ModelContext, now: Date = .now) -> Task<Void, Never> {
+        guard let openedAt = setting.linkOpenedAt else {
+            return Task {}
+        }
+        finishLinkReturn(setting, in: context)
+        return complete(setting, in: context, periodContaining: openedAt, now: now)
     }
 
     /// 通知設定を削除し、登録済みの通知も止める

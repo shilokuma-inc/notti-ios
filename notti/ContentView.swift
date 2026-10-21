@@ -14,6 +14,7 @@ struct ContentView: View {
     @Environment(\.notificationScheduler) private var scheduler
     @Environment(\.notificationAuthorizer) private var authorizer
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(LinkOpener.self) private var linkOpener
     @Query(sort: \NotificationSetting.createdAt) private var settings: [NotificationSetting]
     @StoredQuietHours private var quietHours
     @State private var isAdding = false
@@ -51,7 +52,8 @@ struct ContentView: View {
                             } else {
                                 actions.undoCompletion(setting, in: modelContext)
                             }
-                        }
+                        },
+                        onOpenLink: openLinkAction(for: setting)
                     )
                 }
                 .onDelete { offsets in
@@ -82,13 +84,18 @@ struct ContentView: View {
             }
             .sheet(isPresented: $isAdding, onDismiss: requestAuthorizationIfEnabled) {
                 NotificationEditView()
+                    .linkOpenFailureAlert()
             }
             .sheet(item: $editingSetting, onDismiss: requestAuthorizationIfEnabled) { setting in
                 NotificationEditView(setting: setting)
+                    .linkOpenFailureAlert()
             }
             .sheet(isPresented: $isEditingQuietHours) {
                 QuietHoursView()
+                    .linkOpenFailureAlert()
             }
+            .linkOpenFailureAlert()
+            .linkReturnCheck(settings: settings, isPresentingSheet: isAdding || editingSetting != nil || isEditingQuietHours)
             .task {
                 authorization = await authorizer.authorization()
             }
@@ -130,6 +137,18 @@ struct ContentView: View {
         }
     }
 
+    /// 行の「開く」ボタンで行うこと。紐づけたアプリが無ければ nil（ボタンを出さない）
+    private func openLinkAction(for setting: NotificationSetting) -> (() -> Void)? {
+        guard setting.hasLink else {
+            return nil
+        }
+        return {
+            Task {
+                await actions.openLink(of: setting, with: linkOpener, in: modelContext)
+            }
+        }
+    }
+
     private func isEnabledBinding(for setting: NotificationSetting) -> Binding<Bool> {
         Binding {
             setting.isEnabled
@@ -143,4 +162,5 @@ struct ContentView: View {
 #Preview {
     ContentView()
         .modelContainer(for: NotificationSetting.self, inMemory: true)
+        .environment(LinkOpener())
 }

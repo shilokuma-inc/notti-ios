@@ -42,7 +42,9 @@ struct NotificationEditView: View {
         }
         var trimmed = savingDraft
         trimmed.message = trimmed.message.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isChanged = setting.map { $0.draft != trimmed } ?? true
+        trimmed.linkURL = LinkURL.normalized(trimmed.linkURL)
+        // URL だけの変更では登録し直さず起点も変わらない（`NotificationSettingActions.save` と同じ判定）
+        let isChanged = setting.map { trimmed.requiresRescheduling(from: $0.draft) } ?? true
         let startDate = isChanged ? .now : setting?.startDate ?? .now
         let calendar = Calendar.current
         let plan = NotificationTriggerPlan.make(
@@ -79,6 +81,7 @@ struct NotificationEditView: View {
                         untilDoneSection
                     }
                 }
+                LinkURLSection(linkURL: $draft.linkURL)
             }
             .navigationTitle(setting == nil ? "通知を追加" : "通知を編集")
             .navigationBarTitleDisplayMode(.inline)
@@ -170,7 +173,7 @@ struct NotificationEditView: View {
                 case .multipleMonthDaysUntilDone:
                     Label("完了するまで繰り返すときは、日付か月末を 1 つだけ選んでください", systemImage: "exclamationmark.circle")
                         .foregroundStyle(.orange)
-                case .emptyMessage, nil:
+                case .emptyMessage, .unreadableLinkURL, .unsupportedLinkScheme, nil:
                     EmptyView()
                 }
             }

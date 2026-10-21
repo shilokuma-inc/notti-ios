@@ -19,6 +19,8 @@ nonisolated struct NotificationDraft: Equatable, Sendable {
     var repeatsUntilDone = false
     /// 完了するまで繰り返すときの催促の間隔・日の区切り・週の始まり
     var untilDoneRule = UntilDoneRule()
+    /// 紐づけて開くアプリの URL の入力。nil か空なら紐づけなし。保存のときに前後の空白を取り除く
+    var linkURL: String?
 }
 
 extension NotificationSetting {
@@ -30,7 +32,8 @@ extension NotificationSetting {
             interval: interval,
             schedule: timeOfDaySchedule,
             repeatsUntilDone: repeatsUntilDone,
-            untilDoneRule: untilDoneRule
+            untilDoneRule: untilDoneRule,
+            linkURL: linkURL
         )
     }
 
@@ -47,6 +50,7 @@ extension NotificationSetting {
         monthEndOffset = draft.schedule.monthEndOffset
         repeatsUntilDone = draft.repeatsUntilDone
         untilDoneRule = draft.untilDoneRule
+        linkURL = draft.linkURL
     }
 }
 
@@ -65,6 +69,10 @@ extension NotificationDraft {
         case multipleWeekdaysUntilDone
         /// 完了するまで繰り返す毎月の通知で、日付と月末を合わせて 2 つ以上選んでいる（催促を始める日は 1 つ）
         case multipleMonthDaysUntilDone
+        /// 開くアプリの URL が読めないか、スキーム（`https://` など）が無い
+        case unreadableLinkURL
+        /// 開くアプリの URL のスキームが受け付けないもの（`javascript:`・`file:`・`data:`）
+        case unsupportedLinkScheme
     }
 
     /// 完了するまで繰り返す設定が効く（時刻指定で、繰り返しが毎日・曜日・毎月）。
@@ -81,13 +89,40 @@ extension NotificationDraft {
         }
     }
 
-    /// 保存できない理由。保存できるなら nil
+    /// 保存できない理由。保存できるなら nil。文言・時刻と繰り返し・開くアプリの URL の順に確かめる
     ///
     /// - Parameter now: 1 回だけの日時が過ぎたかどうかの基準。分未満は切り捨てて比べる
     func problem(now: Date = .now, calendar: Calendar = .current) -> Problem? {
         if message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return .emptyMessage
         }
+        if let problem = scheduleProblem(now: now, calendar: calendar) {
+            return problem
+        }
+        switch LinkURL.problem(of: linkURL) {
+        case .unreadable:
+            return .unreadableLinkURL
+        case .unsupportedScheme:
+            return .unsupportedLinkScheme
+        case nil:
+            return nil
+        }
+    }
+
+    /// `old` の内容から変えて保存するときに、通知を登録し直すかどうか
+    ///
+    /// 開くアプリの URL だけを変えた（紐づけの有無は同じ）なら登録し直さない。届いた通知からは設定の ID で URL を引くので要らず、
+    /// 間隔の通知を登録した時刻から数え直しにしないため。紐づけの有無が変わったら、通知のカテゴリが変わるので登録し直す
+    func requiresRescheduling(from old: NotificationDraft) -> Bool {
+        var compared = self
+        if (LinkURL.normalized(compared.linkURL) == nil) == (LinkURL.normalized(old.linkURL) == nil) {
+            compared.linkURL = old.linkURL
+        }
+        return compared != old
+    }
+
+    /// 時刻と繰り返しの、保存できない理由。間隔の通知と、保存できる時刻指定の通知は nil
+    private func scheduleProblem(now: Date, calendar: Calendar) -> Problem? {
         guard kind == .timeOfDay else {
             return nil
         }

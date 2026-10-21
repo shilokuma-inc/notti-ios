@@ -15,6 +15,8 @@ struct NottiApp: App {
     private let modelContainer: ModelContainer
     /// 通知センターは delegate を弱参照で持つため、ここで保持する
     private let notificationDelegate: NotificationDelegate
+    /// 紐づけたアプリを開く。通知のアクションと一覧の画面で、開けなかったときの知らせを共有する
+    private let linkOpener: LinkOpener
 
     init() {
         do {
@@ -25,7 +27,8 @@ struct NottiApp: App {
             fatalError("ModelContainer を作成できません: \(error)")
         }
         // 通知の「完了」のアクションは、アプリと同じ container に保存する
-        notificationDelegate = NotificationDelegate(modelContainer: modelContainer)
+        linkOpener = LinkOpener()
+        notificationDelegate = NotificationDelegate(modelContainer: modelContainer, linkOpener: linkOpener)
         UNUserNotificationCenter.current().delegate = notificationDelegate
         // 通知のスヌーズ・完了のアクションは、カテゴリを登録しておかないと出ない
         NotificationScheduler().registerCategories()
@@ -36,6 +39,7 @@ struct NottiApp: App {
             ContentView()
                 // 撮影モードでは端末の設定によらず同じ配色で撮る。通常の起動では nil（端末の設定のまま）
                 .preferredColorScheme(ScreenshotDemo.colorScheme)
+                .environment(linkOpener)
                 .task {
                     await NotificationReconciler(scheduler: NotificationScheduler())
                         .reconcile(in: modelContainer.mainContext)
