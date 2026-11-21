@@ -31,7 +31,7 @@ App Store 上のアプリ名（日本語「のっち」・英語「Notti」）�
 
 | branch \ workflow | Build | Archive | Upload |
 |---|---|---|---|
-| main | [![Build](https://github.com/shilokuma-inc/notti-ios/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/shilokuma-inc/notti-ios/actions/workflows/build.yml?query=branch%3Amain) | [![Archive](https://github.com/shilokuma-inc/notti-ios/actions/workflows/archive.yml/badge.svg?branch=main)](https://github.com/shilokuma-inc/notti-ios/actions/workflows/archive.yml?query=branch%3Amain) | — |
+| main | [![Build](https://github.com/shilokuma-inc/notti-ios/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/shilokuma-inc/notti-ios/actions/workflows/build.yml?query=branch%3Amain) | — | — |
 | develop | [![Build](https://github.com/shilokuma-inc/notti-ios/actions/workflows/build.yml/badge.svg?branch=develop)](https://github.com/shilokuma-inc/notti-ios/actions/workflows/build.yml?query=branch%3Adevelop) | — | [![Upload](https://github.com/shilokuma-inc/notti-ios/actions/workflows/upload.yml/badge.svg?branch=develop)](https://github.com/shilokuma-inc/notti-ios/actions/workflows/upload.yml?query=branch%3Adevelop) |
 
 ## セットアップ
@@ -53,7 +53,7 @@ open notti.xcodeproj
 
 | ブランチ・イベント | Build（ビルド + テスト + SwiftLint） | Archive（IPA Export） | Upload（App Store Connect） |
 |---|:-:|:-:|:-:|
-| `main` | ✅ | ✅ | |
+| `main` | ✅ | | |
 | `develop` | ✅ | | ✅ |
 | `release/**` | ✅ | | ✅ |
 | その他の作業ブランチ（`epic/**` を含む） | ✅（Unit テストのみ） | | |
@@ -62,7 +62,8 @@ open notti.xcodeproj
 | 手動実行（workflow_dispatch） | | ✅ | ✅ |
 
 - Upload は Archive → IPA Export を含むため、`develop` / `release/**` では Archive を別途実行しません
-- ドキュメントだけの変更（`**/*.md`、`docs/**`）では Build を実行しません。Upload（`develop` / `release/**` への push）と Archive（`main` への push）は、ドキュメントだけの変更でも実行します
+- `main` への push で実行するのは Build だけです。Archive は手動実行（workflow_dispatch）のみです
+- ドキュメントだけの変更（`**/*.md`、`docs/**`）では Build を実行しません。Upload（`develop` / `release/**` への push）は、ドキュメントだけの変更でも実行します
 - 作業ブランチへの push では、時間のかかる UI テスト（`nottiUITests`）を省いて Unit テストだけ実行します。UI テストは Pull Request の作成時と `main` / `develop` / `release/**` への push で実行します。Fork からの Pull Request は push で実行されないため、更新（synchronize）を含むすべてのイベントで UI テストまで実行します
 - Xcode のバージョンは [.github/workflows/_build.yml](.github/workflows/_build.yml) と [.github/workflows/_archive.yml](.github/workflows/_archive.yml)、[.github/workflows/app-store-screenshots.yml](.github/workflows/app-store-screenshots.yml) の `xcode-version` で固定しています
 
