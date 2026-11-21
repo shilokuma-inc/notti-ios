@@ -22,7 +22,7 @@ shilokuma-inc/template-app-ios から作った SwiftUI アプリ。アプリの�
 - Swift 6 言語モード（strict concurrency complete）。
 - テストは `nottiTests`（Swift Testing）と `nottiUITests`（XCTest）。
 - CI は `.github/workflows/_build.yml` / `_archive.yml` を再利用ワークフローとして呼ぶ。Secrets は org 共有のもの。
-  Upload は `develop` / `release/**` への push ＋手動実行、Archive は `main` への push ＋手動実行。
+  Upload は `develop` / `release/**` への push ＋手動実行、Archive は手動実行のみ（`main` への push で動くのは Build だけ）。
   ビルド番号はアップロード時に Xcode が自動で採番する（`_archive.yml` がランナー上の ExportOptions の
   `manageAppVersionAndBuildNumber` を true にする）ので、`CURRENT_PROJECT_VERSION` は手で上げない。
 - App Store のメタデータ（`AppStore/metadata/`）とスクリーンショット（`AppStore/screenshots.json`）は
