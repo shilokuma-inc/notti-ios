@@ -56,7 +56,7 @@ open notti.xcodeproj
 | `main` | ✅ | | |
 | `develop` | ✅ | | ✅ |
 | `release/**` | ✅ | | ✅ |
-| その他の作業ブランチ（`epic/**` を含む） | ✅（Unit テストのみ） | | |
+| その他の作業ブランチ（AskHub の作業ブランチ `askhub/**` を含む） | ✅（Unit テストのみ） | | |
 | Pull Request の作成時（opened / reopened / ready_for_review） | ✅ | | |
 | Fork からの Pull Request | ✅ | | |
 | 手動実行（workflow_dispatch） | | ✅ | ✅ |
@@ -65,6 +65,7 @@ open notti.xcodeproj
 - `main` への push で実行するのは Build だけです。Archive は手動実行（workflow_dispatch）のみです
 - ドキュメントだけの変更（`**/*.md`、`docs/**`）では Build を実行しません。Upload（`develop` / `release/**` への push）は、ドキュメントだけの変更でも実行します
 - 作業ブランチへの push では、時間のかかる UI テスト（`nottiUITests`）を省いて Unit テストだけ実行します。UI テストは Pull Request の作成時と `main` / `develop` / `release/**` への push で実行します。Fork からの Pull Request は push で実行されないため、更新（synchronize）を含むすべてのイベントで UI テストまで実行します
+- AskHub の子 PR（作業ブランチ `askhub/**` 宛て）では、Pull Request のイベントで Build を実行しません（ブランチへの push の Unit テストで確かめます）。最終 PR（`askhub/**` → `develop`）は、更新のたびに UI テストまで実行します
 - Xcode のバージョンは [.github/workflows/_build.yml](.github/workflows/_build.yml) と [.github/workflows/_archive.yml](.github/workflows/_archive.yml)、[.github/workflows/app-store-screenshots.yml](.github/workflows/app-store-screenshots.yml) の `xcode-version` で固定しています
 
 そのほかのワークフロー:
@@ -139,9 +140,7 @@ App Store Connect のバージョンに英語（米国）のローカライズ�
 ├── nottiUITests/       # UI テスト（XCTest）
 ├── notti.xcodeproj     # 共有スキーム notti を含む
 ├── docs/               # ExportOptions.plist のサンプル
-├── scripts/            # ralph ループ用スクリプト
 ├── Tools/              # App Store のメタデータ・スクリーンショットの検査・撮影・反映スクリプト
-├── .claude/ralph/      # ralph ループのテンプレート
 ├── .swiftlint.yml      # SwiftLint 設定
 └── .github/
     ├── ISSUE_TEMPLATE/
